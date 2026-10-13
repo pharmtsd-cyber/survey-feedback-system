@@ -37,18 +37,16 @@
     <div id="wrapper">
       <!-- 側邊欄 -->
       <nav id="sidebar">
-        <div class="sidebar-header d-flex align-items-center justify-content-center flex-column py-4">
-          <div class="d-flex align-items-center">
-            <i class="bi bi-ui-checks-grid fs-2 text-primary me-2"></i>
-            <h4 class="mb-0 fw-bold sidebar-text">問卷回饋系統</h4>
-          </div>
-          <small id="user-info" class="text-muted mt-2 sidebar-text"></small>
+        <div class="sidebar-header d-flex flex-column align-items-center py-4">
+          <i class="bi bi-ui-checks-grid fs-1 text-primary sidebar-icon mb-2"></i>
+          <h5 class="fw-bold sidebar-text text-center w-100">問卷回饋系統</h5>
+          <small id="user-info" class="text-muted sidebar-text mt-1 text-center w-100"></small>
         </div>
         
         <ul class="list-unstyled components">
           <li class="active">
             <a href="#" onclick="app.loadDashboard(this)">
-              <i class="bi bi-house-door"></i> <span class="sidebar-text">首頁 (總覽)</span>
+              <i class="bi bi-house-door"></i> <span class="sidebar-text">系統總覽</span>
             </a>
           </li>
           <div id="dept-menu-container">
@@ -57,28 +55,31 @@
         </ul>
       </nav>
 
-      <!-- 右側內容 -->
+      <!-- 右側主內容區 -->
       <div id="content">
-        <!-- 頂部導覽 -->
-        <nav class="navbar navbar-light px-3 mb-4 rounded shadow-sm bg-white">
-          <div class="d-flex w-100 align-items-center">
-            <!-- 漢堡按鈕 -->
-            <button type="button" class="btn btn-outline-secondary me-3 border-0" onclick="app.toggleSidebar()">
-              <i class="bi bi-list fs-4"></i>
-            </button>
-            
-            <div class="ms-auto d-flex align-items-center flex-wrap gap-2">
-              <label class="fw-bold text-secondary mb-0">篩選區間：</label>
-              <input type="date" id="start-date" class="form-control form-control-sm" onchange="app.refreshCurrentPage()">
-              <span class="text-muted">~</span>
-              <input type="date" id="end-date" class="form-control form-control-sm" onchange="app.refreshCurrentPage()">
+        <!-- 頂部精簡控制區 (大頭貼 + 標題 + 日期篩選) -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3 bg-white p-3 rounded shadow-sm border-0">
+          
+          <div class="d-flex align-items-center gap-3">
+            <!-- 點擊大頭貼收合側邊欄 -->
+            <div onclick="app.toggleSidebar()" style="cursor: pointer;" title="展開/收合選單" class="text-primary hover-scale">
+              <i class="bi bi-person-circle" style="font-size: 2.5rem; line-height: 1;"></i>
             </div>
+            <h4 id="page-main-title" class="fw-bold mb-0 text-dark">系統總覽</h4>
           </div>
-        </nav>
+          
+          <!-- 日期區間篩選 (填寫表單時會自動隱藏) -->
+          <div class="d-flex align-items-center gap-2 bg-light px-3 py-2 rounded border" id="date-filter-container">
+            <label class="fw-bold text-secondary mb-0 text-nowrap"><i class="bi bi-calendar-range"></i> 篩選區間：</label>
+            <input type="date" id="start-date" class="form-control form-control-sm border-0 bg-transparent fw-bold" onchange="app.refreshCurrentPage()">
+            <span class="text-muted fw-bold">~</span>
+            <input type="date" id="end-date" class="form-control form-control-sm border-0 bg-transparent fw-bold" onchange="app.refreshCurrentPage()">
+          </div>
+
+        </div>
 
         <!-- 首頁總覽區 -->
         <div id="view-dashboard" class="content-view active">
-          <h4 class="mb-4 fw-bold">系統總覽</h4>
           <div class="row">
             <!-- 異常卡片 -->
             <div class="col-md-6 mb-3">
@@ -100,20 +101,18 @@
             </div>
           </div>
           <!-- 溫度圖表區 -->
-          <h5 class="mt-4 fw-bold"><i class="bi bi-graph-up"></i> 溫度監控折線圖</h5>
+          <h5 class="mt-4 fw-bold text-secondary"><i class="bi bi-graph-up"></i> 溫度監控折線圖</h5>
           <div id="dash-charts" class="row mt-2"></div>
         </div>
 
         <!-- 單位問卷清單區 -->
         <div id="view-dept-flows" class="content-view">
-          <h4 id="dept-title" class="mb-4 fw-bold"></h4>
           <div class="list-group" id="dept-flow-list"></div>
         </div>
 
         <!-- 問卷填寫區 -->
         <div id="view-form" class="content-view">
-          <button class="btn btn-secondary btn-sm mb-3 shadow-sm" onclick="app.goBack()">← 返回清單</button>
-          <h4 id="form-title" class="mb-4 fw-bold text-primary"></h4>
+          <button class="btn btn-outline-secondary btn-sm mb-3 shadow-sm fw-bold" onclick="app.goBack()"><i class="bi bi-arrow-left"></i> 返回清單</button>
           <div id="form-container"></div>
           <button id="btn-submit-form" class="btn btn-success btn-lg w-100 mt-4 fw-bold shadow" onclick="app.submitForm()">送出問卷</button>
         </div>
@@ -127,9 +126,9 @@
       <div class="modal-content border-0 shadow">
         <div class="modal-header bg-light border-0"><h5 class="modal-title fw-bold text-dark">選擇動作</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body d-grid gap-3 p-4">
-          <button class="btn btn-outline-primary fw-bold" onclick="app.openForm('refill')">建立新紀錄 (再次填寫)</button>
-          <button class="btn btn-outline-warning text-dark fw-bold" onclick="app.openForm('edit')">修改此紀錄</button>
-          <button class="btn btn-outline-secondary fw-bold" onclick="app.openForm('view')">僅瀏覽紀錄</button>
+          <button class="btn btn-outline-primary fw-bold" onclick="app.openForm('refill')"><i class="bi bi-file-earmark-plus"></i> 建立新紀錄 (再次填寫)</button>
+          <button class="btn btn-outline-warning text-dark fw-bold" onclick="app.openForm('edit')"><i class="bi bi-pencil-square"></i> 修改此紀錄</button>
+          <button class="btn btn-outline-secondary fw-bold" onclick="app.openForm('view')"><i class="bi bi-eye"></i> 僅瀏覽紀錄</button>
         </div>
       </div>
     </div>
