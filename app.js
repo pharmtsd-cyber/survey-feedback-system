@@ -50,13 +50,12 @@ const app = {
     
     let menuHtml = '';
     this.user.availableDepts.forEach(d => {
-      menuHtml += `<li><a onclick="app.loadDeptFlows('${d}', this)"><i class="bi bi-folder2-open"></i> <span class="sidebar-text">${d}</span></a></li>`;
+      menuHtml += `<li><a onclick="app.loadDeptFlows('${d}', this)"><i class="bi bi-caret-right"></i> <span class="sidebar-text">${d}</span></a></li>`;
     });
     document.getElementById('dept-menu-container').innerHTML = menuHtml;
 
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('main-system').style.display = 'block';
-    
     this.loadDashboard(document.querySelector('#sidebar ul li a'));
   },
 
@@ -90,7 +89,6 @@ const app = {
     this.loadDashboardCharts(startDate, endDate);
   },
 
-  // 確保 Chart.js 抓得到畫面上的 Canvas
   async loadDashboardCharts(startDate, endDate) {
     const data = await this.api({ action: 'getTempHistoryByDate', startDate, endDate, department: this.user.dept });
     const container = document.getElementById('dash-charts');
@@ -109,7 +107,7 @@ const app = {
     }
     container.innerHTML = html; 
 
-    // 延遲一小段時間確保 DOM 渲染完畢
+    // 確保 DOM 載入後才綁定 Chart
     setTimeout(() => {
       for(let qId in data) {
         let canvas = document.getElementById(`dash-chart-${qId}`);
@@ -135,56 +133,63 @@ const app = {
     
     const startDate = document.getElementById('start-date').value;
     const endDate = document.getElementById('end-date').value;
-    const flows = await this.api({ action: 'getDeptFlows', department: dept, startDate, endDate });
+    const categoriesData = await this.api({ action: 'getDeptFlows', department: dept, startDate, endDate });
     
     let html = '';
-    flows.forEach((f, index) => {
-      if (f.count === 0) {
-        // 未完成：點擊直接進入填寫
-        html += `
-          <div class="accordion-item mb-3 shadow-sm border-0 rounded">
-            <h2 class="accordion-header">
-              <button class="accordion-button collapsed bg-white text-dark rounded" type="button" onclick="app.openForm('new', '${f.id}', '${f.name}')">
+    // 取得分類名稱並依名稱排序 (如 1_早班, 2_午班)
+    let sortedCategories = Object.keys(categoriesData).sort();
+    
+    sortedCategories.forEach(catName => {
+      html += `<h5 class="fw-bold text-primary mt-4 mb-3 border-bottom pb-2"><i class="bi bi-tags"></i> ${catName}</h5>`;
+      let flows = categoriesData[catName];
+      
+      flows.forEach((f, index) => {
+        let collapseId = `col-${f.id}`;
+        if (f.count === 0) {
+          html += `
+            <div class="card border-0 shadow-sm mb-3">
+              <button class="btn btn-light d-flex justify-content-between align-items-center p-3 text-start" onclick="app.openForm('new', '${f.id}', '${f.name}')">
                 <strong class="fs-5">${f.name}</strong>
-                <span class="badge bg-secondary rounded-pill px-3 ms-auto">未完成</span>
+                <span class="badge bg-secondary rounded-pill px-3 fs-6">未完成</span>
               </button>
-            </h2>
-          </div>`;
-      } else {
-        // 已完成：點擊展開紀錄清單
-        let listHtml = '';
-        f.records.forEach(r => {
-          let badge = r.isException ? `<span class="badge bg-danger ms-auto shadow-sm">狀態: 異常</span>` : `<span class="badge bg-success ms-auto shadow-sm">狀態: 正常</span>`;
-          listHtml += `
-            <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3 cursor-pointer" onclick="app.openForm('edit', '${f.id}', '${f.name}', '${r.recordId}')">
-              <div>
-                <div class="fw-bold"><i class="bi bi-person text-primary"></i> ${r.empName}</div>
-                <small class="text-muted"><i class="bi bi-clock"></i> ${r.time}</small>
-              </div>
-              ${badge}
             </div>`;
-        });
-
-        html += `
-          <div class="accordion-item mb-3 shadow-sm border-0 rounded">
-            <h2 class="accordion-header">
-              <button class="accordion-button collapsed bg-white text-dark rounded" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${index}">
-                <strong class="fs-5">${f.name}</strong>
-                <span class="badge bg-success rounded-pill px-3 ms-auto">完成 ${f.count} 次</span>
-              </button>
-            </h2>
-            <div id="collapse-${index}" class="accordion-collapse collapse" data-bs-parent="#dept-accordion">
-              <div class="accordion-body p-0">
-                <div class="p-3 bg-light text-end">
-                  <button class="btn btn-sm btn-outline-primary fw-bold" onclick="app.openForm('new', '${f.id}', '${f.name}')"><i class="bi bi-plus-lg"></i> 新增一筆紀錄</button>
+        } else {
+          let listHtml = '';
+          f.records.forEach(r => {
+            let badge = r.isException ? `<span class="badge bg-danger shadow-sm">異常</span>` : `<span class="badge bg-success shadow-sm">正常</span>`;
+            listHtml += `
+              <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3" style="cursor:pointer;" onclick="app.openForm('edit', '${f.id}', '${f.name}', '${r.recordId}')">
+                <div>
+                  <div class="fw-bold"><i class="bi bi-person text-primary"></i> ${r.empName}</div>
+                  <small class="text-muted"><i class="bi bi-clock"></i> ${r.time}</small>
                 </div>
-                <div class="list-group list-group-flush">${listHtml}</div>
+                ${badge}
+              </div>`;
+          });
+
+          html += `
+            <div class="accordion mb-3 shadow-sm rounded" id="acc-${f.id}">
+              <div class="accordion-item border-0">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed bg-white text-dark rounded" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
+                    <strong class="fs-5">${f.name}</strong>
+                    <span class="badge bg-success rounded-pill px-3 ms-auto fs-6">完成 ${f.count} 次</span>
+                  </button>
+                </h2>
+                <div id="${collapseId}" class="accordion-collapse collapse" data-bs-parent="#acc-${f.id}">
+                  <div class="accordion-body p-0">
+                    <div class="p-3 bg-light text-end">
+                      <button class="btn btn-sm btn-outline-primary fw-bold shadow-sm" onclick="app.openForm('new', '${f.id}', '${f.name}')"><i class="bi bi-plus-lg"></i> 建立新紀錄</button>
+                    </div>
+                    <div class="list-group list-group-flush">${listHtml}</div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>`;
-      }
+            </div>`;
+        }
+      });
     });
-    document.getElementById('dept-accordion').innerHTML = html;
+    document.getElementById('dept-accordion-container').innerHTML = html;
   },
 
   async openForm(mode, flowId, flowName, recordId = null) {
@@ -220,7 +225,7 @@ const app = {
           html += `<div class="form-check mb-2"><input type="checkbox" name="${q.qId}" value="${opt}" class="form-check-input" ${checked}> <label class="form-check-label">${opt}</label></div>`;
         });
       } else if (q.type === '數字' || q.type === '溫度') {
-        html += `<input type="number" id="${q.qId}" class="form-control form-control-lg bg-light border-0 shadow-sm" value="${val}">`;
+        html += `<input type="number" step="any" id="${q.qId}" class="form-control form-control-lg bg-light border-0 shadow-sm" value="${val}">`;
       } else if (q.type === '照片') {
         if(mode === 'edit' && val.startsWith('http')) {
           html += `<div class="mb-2"><img src="${val}" class="img-fluid rounded shadow-sm" style="max-height:200px;"></div><small class="text-muted d-block mb-2">上傳新照片將覆蓋舊照片</small>`;
@@ -289,29 +294,39 @@ const app = {
     };
 
     const res = await this.api(payload);
-    if (res.exceptionTriggered) alert("儲存成功！注意：有異常數值，已通報主管處理。");
+    if (res.exceptionTriggered) alert("儲存成功！注意：有異常數值，已通報處理。");
     else alert("儲存成功！");
     this.goBack();
   },
 
-  // 後台維護功能
-  async loadAdmin(menuItem) {
+  // 後台維護渲染
+  async loadAdmin(menuItem, type) {
     this.setActiveMenu(menuItem);
-    this.switchView('view-admin', '後台維護 (唯讀)');
+    this.switchView('view-admin', type === 'flows' ? '維護 FLOW' : '設計問卷');
     const data = await this.api({ action: 'getAdminData' });
     
-    document.getElementById('admin-flows-list').innerHTML = data.flows.map(f => 
-      `<li class="list-group-item d-flex justify-content-between">
-         <span><b>${f.name}</b> <small class="text-muted">(${f.dept})</small></span>
-         <span class="badge ${f.active ? 'bg-success' : 'bg-secondary'}">${f.active ? '啟用' : '停用'}</span>
-       </li>`
-    ).join('');
-
-    document.getElementById('admin-questions-list').innerHTML = data.questions.map(q => 
-      `<li class="list-group-item">
-         <span class="badge bg-info text-dark me-2">${q.type}</span> <b>${q.title}</b> <small class="text-muted">[所屬 Flow: ${q.flowId}]</small>
-       </li>`
-    ).join('');
+    let html = '';
+    if (type === 'flows') {
+      html = `<h5 class="fw-bold mb-3">已建立的問卷表單 (Flows)</h5><div class="list-group shadow-sm">`;
+      data.flows.forEach(f => {
+        let badge = f.active ? `<span class="badge bg-success">啟用中</span>` : `<span class="badge bg-secondary">已停用</span>`;
+        html += `<div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                   <div><div class="fw-bold fs-5">${f.name}</div><small class="text-muted">分類: ${f.category} ｜ 單位: ${f.dept}</small></div>
+                   ${badge}
+                 </div>`;
+      });
+      html += `</div>`;
+    } else {
+      html = `<h5 class="fw-bold mb-3">題目庫總覽 (Questions)</h5><div class="list-group shadow-sm">`;
+      data.questions.forEach(q => {
+        html += `<div class="list-group-item py-3">
+                   <div class="d-flex align-items-center mb-1"><span class="badge bg-primary me-2">${q.type}</span> <span class="fw-bold">${q.title}</span></div>
+                   <small class="text-muted">所屬 Flow ID: ${q.flowId}</small>
+                 </div>`;
+      });
+      html += `</div>`;
+    }
+    document.getElementById('admin-content-area').innerHTML = html;
   }
 };
 window.onload = () => app.init();
