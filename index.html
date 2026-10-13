@@ -11,7 +11,6 @@
 </head>
 <body class="desktop-mode">
 
-  <!-- Loading 遮罩 -->
   <div class="loading-overlay" id="loading"><div class="spinner-border text-primary" role="status"></div></div>
 
   <!-- 登入頁 -->
@@ -24,7 +23,6 @@
             <h3 class="text-center mb-4 fw-bold text-dark">問卷回饋系統登入</h3>
             <input type="text" id="login-emp-id" class="form-control form-control-lg mb-4 text-center fw-bold" placeholder="請輸入員工編號">
             
-            <!-- 雙版本登入按鈕 -->
             <div class="d-grid gap-3">
               <button class="btn btn-outline-primary btn-lg fw-bold" onclick="app.login('desktop')"><i class="bi bi-pc-display me-2"></i>桌機版登入</button>
               <button class="btn btn-primary btn-lg fw-bold" onclick="app.login('mobile')"><i class="bi bi-phone me-2"></i>手機版登入</button>
@@ -39,12 +37,12 @@
   <div id="main-system" class="page-view" style="display:none;">
     <div id="wrapper">
       
-      <!-- 側邊欄 -->
+      <!-- 側邊欄 (大頭貼按鈕移至此) -->
       <nav id="sidebar">
-        <div class="sidebar-header d-flex flex-column align-items-center py-4">
-          <i class="bi bi-ui-checks-grid fs-1 text-primary sidebar-icon mb-2"></i>
-          <h5 class="fw-bold sidebar-text text-center w-100">問卷回饋系統</h5>
-          <small id="user-info" class="text-muted sidebar-text mt-1 text-center w-100 fw-bold"></small>
+        <div class="sidebar-header d-flex flex-column align-items-center py-4" onclick="app.toggleSidebar()" style="cursor: pointer;" title="點擊展開/收合">
+          <i class="bi bi-person-circle text-primary sidebar-icon mb-2 hover-scale"></i>
+          <h5 class="fw-bold sidebar-text text-center w-100 mb-1">問卷回饋系統</h5>
+          <small id="user-info" class="text-muted sidebar-text text-center w-100 fw-bold"></small>
         </div>
         <ul class="list-unstyled components">
           <li class="active"><a href="#" onclick="app.loadDashboard(this)"><i class="bi bi-house-door"></i> <span class="sidebar-text">系統總覽</span></a></li>
@@ -54,14 +52,10 @@
 
       <!-- 右側主內容區 -->
       <div id="content">
-        <!-- 頂部精簡控制區 (大頭貼 + 標題 + 日期篩選) -->
+        <!-- 頂部精簡控制區 -->
         <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3 bg-white p-3 rounded shadow-sm border-0">
-          <div class="d-flex align-items-center gap-3">
-            <div onclick="app.toggleSidebar()" style="cursor: pointer;" title="展開/收合選單" class="text-primary hover-scale">
-              <i class="bi bi-person-circle" style="font-size: 2.5rem; line-height: 1;"></i>
-            </div>
-            <h4 id="page-main-title" class="fw-bold mb-0 text-dark">系統總覽</h4>
-          </div>
+          
+          <h4 id="page-main-title" class="fw-bold mb-0 text-dark">系統總覽</h4>
           
           <div class="d-flex align-items-center gap-2 bg-light px-3 py-2 rounded border" id="date-filter-container">
             <input type="date" id="start-date" class="form-control form-control-sm border-0 bg-transparent fw-bold text-primary" onchange="app.refreshCurrentPage()">
@@ -99,10 +93,9 @@
         <div id="view-form" class="content-view">
           <div id="form-container"></div>
           
-          <!-- 底部功能按鈕群 -->
           <div class="d-flex gap-2 mt-4 pb-4">
-            <button class="btn btn-secondary flex-fill fw-bold shadow-sm py-2" onclick="app.goBack()">返回</button>
-            <button class="btn btn-danger flex-fill fw-bold shadow-sm py-2" id="btn-delete-form" onclick="app.deleteRecord()" style="display:none;">刪除紀錄</button>
+            <button class="btn btn-secondary flex-fill fw-bold shadow-sm py-2" onclick="app.goBack()">返回清單</button>
+            <button class="btn btn-danger flex-fill fw-bold shadow-sm py-2" id="btn-delete-form" onclick="app.deleteRecord()" style="display:none;">刪除</button>
             <button class="btn btn-primary flex-fill fw-bold shadow-sm py-2" id="btn-submit-form" onclick="app.submitForm()">確認儲存</button>
           </div>
         </div>
