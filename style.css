@@ -1,6 +1,5 @@
 body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #e9ecef; overflow-x: hidden; transition: background 0.3s;}
 
-/* RWD 雙模式控制 */
 body.mobile-mode #wrapper {
   max-width: 480px; margin: 0 auto;
   box-shadow: 0 0 30px rgba(0,0,0,0.2);
@@ -14,12 +13,12 @@ body.desktop-mode #wrapper { width: 100%; background: #fff; }
 
 #wrapper { display: flex; align-items: stretch; min-height: 100vh; }
 
-/* 側邊欄：預設展開，支援點擊大頭貼縮合至 Icon 大小 */
 #sidebar {
   min-width: 250px; max-width: 250px; background: #ffffff; color: #333;
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); box-shadow: 2px 0 10px rgba(0,0,0,0.05); z-index: 100;
 }
-#sidebar .sidebar-header { border-bottom: 1px solid #e9ecef; }
+#sidebar .sidebar-header { border-bottom: 1px solid #e9ecef; transition: background 0.2s;}
+#sidebar .sidebar-header:hover { background: #f8f9fa; }
 #sidebar ul.components { padding: 15px 0; }
 #sidebar ul li a { 
   padding: 12px 20px; font-size: 1.1em; display: flex; align-items: center; 
@@ -29,16 +28,12 @@ body.desktop-mode #wrapper { width: 100%; background: #fff; }
 #sidebar ul li a:hover { background: #f8f9fa; color: #0d6efd; }
 #sidebar ul li.active > a { background: #e9ecef; color: #0d6efd; border-right: 4px solid #0d6efd; font-weight: bold;}
 
-/* 側邊欄：收縮狀態 (只留 Icon) */
 #sidebar.collapsed { min-width: 80px; max-width: 80px; }
 #sidebar.collapsed .sidebar-text { display: none !important; }
 #sidebar.collapsed ul li a { justify-content: center; padding: 15px 0; }
 #sidebar.collapsed ul li a i { margin-right: 0; font-size: 1.6rem; }
-#sidebar.collapsed .sidebar-icon { font-size: 2rem !important; }
+.sidebar-icon { font-size: 3rem; transition: transform 0.2s; }
+#sidebar.collapsed .sidebar-icon { font-size: 2.5rem; }
 
-/* 主內容區 */
 #content { width: 100%; padding: 20px; transition: all 0.3s; background: #f4f6f9; overflow-y: auto;}
-
-/* 大頭貼動畫 */
-.hover-scale { transition: transform 0.2s; }
 .hover-scale:hover { transform: scale(1.1); opacity: 0.8;}
