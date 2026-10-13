@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- 引入行事曆 FullCalendar -->
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
 </head>
 <body class="desktop-mode">
 
@@ -42,28 +44,36 @@
           <small id="user-info" class="text-muted sidebar-text text-center w-100 fw-bold"></small>
         </div>
         
-        <ul class="list-unstyled components">
+        <ul class="list-unstyled components pb-4">
           <li class="active"><a href="#" onclick="app.loadDashboard(this)"><i class="bi bi-house-door"></i> <span class="sidebar-text">系統總覽</span></a></li>
+          <li><a href="#" onclick="app.loadCalendar(this)"><i class="bi bi-calendar-check"></i> <span class="sidebar-text">行事曆總覽</span></a></li>
           
-          <!-- 分類 1: 問卷類型 -->
-          <li class="nav-header mt-3 px-3 text-secondary fw-bold sidebar-text small"><i class="bi bi-card-checklist me-1"></i>問卷類型 (所有單位)</li>
+          <li class="nav-header mt-3 px-3 text-secondary fw-bold sidebar-text small"><i class="bi bi-card-checklist me-1"></i>問卷類型 (各單位)</li>
           <div id="dept-menu-container"></div>
           
-          <!-- 分類 2: 後台維護 -->
           <li class="nav-header mt-3 px-3 text-secondary fw-bold sidebar-text small"><i class="bi bi-tools me-1"></i>後台維護</li>
-          <li><a href="#" onclick="app.loadAdmin(this, 'flows')"><i class="bi bi-diagram-3"></i> <span class="sidebar-text">維護 FLOW</span></a></li>
-          <li><a href="#" onclick="app.loadAdmin(this, 'questions')"><i class="bi bi-ui-checks"></i> <span class="sidebar-text">設計問卷</span></a></li>
+          <li><a href="#" onclick="app.loadAdminFlows(this)"><i class="bi bi-diagram-3"></i> <span class="sidebar-text">維護 FLOW</span></a></li>
+          <li><a href="#" onclick="app.loadAdminQuestions(this)"><i class="bi bi-ui-checks"></i> <span class="sidebar-text">設計問卷題目</span></a></li>
         </ul>
       </nav>
 
       <!-- 主內容 -->
       <div id="content">
+        <!-- 頂部精簡控制區 -->
         <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3 bg-white p-3 rounded shadow-sm border-0">
           <h4 id="page-main-title" class="fw-bold mb-0 text-dark">系統總覽</h4>
-          <div class="d-flex align-items-center gap-2 bg-light px-3 py-2 rounded border" id="date-filter-container">
+          
+          <!-- 區間篩選 (總覽用) -->
+          <div class="d-flex align-items-center gap-2 bg-light px-3 py-2 rounded border" id="date-range-container">
             <input type="date" id="start-date" class="form-control form-control-sm border-0 bg-transparent fw-bold text-primary" onchange="app.refreshCurrentPage()">
             <span class="text-muted fw-bold">~</span>
             <input type="date" id="end-date" class="form-control form-control-sm border-0 bg-transparent fw-bold text-primary" onchange="app.refreshCurrentPage()">
+          </div>
+          
+          <!-- 單日篩選 (清單用) -->
+          <div class="d-flex align-items-center gap-2 bg-light px-3 py-2 rounded border" id="date-single-container" style="display:none;">
+            <label class="fw-bold text-secondary mb-0">日期：</label>
+            <input type="date" id="target-date" class="form-control form-control-sm border-0 bg-transparent fw-bold text-primary" onchange="app.refreshCurrentPage()">
           </div>
         </div>
 
@@ -86,8 +96,13 @@
           <h5 class="mt-4 fw-bold text-secondary"><i class="bi bi-graph-up"></i> 溫度監控折線圖</h5>
           <div id="dash-charts" class="row mt-2"></div>
         </div>
+        
+        <!-- 行事曆總覽 -->
+        <div id="view-calendar" class="content-view">
+          <div class="card shadow-sm border-0"><div class="card-body" id="calendar-container"></div></div>
+        </div>
 
-        <!-- 單位問卷清單 -->
+        <!-- 單位問卷清單 (手風琴) -->
         <div id="view-dept-flows" class="content-view">
           <div id="dept-accordion-container"></div>
         </div>
@@ -102,10 +117,30 @@
           </div>
         </div>
 
-        <!-- 後台維護 -->
-        <div id="view-admin" class="content-view">
-          <div class="alert alert-info shadow-sm mb-4"><i class="bi bi-info-circle"></i> 提示：目前為檢視模式。為確保資料庫關聯性，新增/刪除/編輯設定請前往 Google Sheets 原始檔操作。</div>
-          <div id="admin-content-area"></div>
+        <!-- 後台維護 FLOW -->
+        <div id="view-admin-flows" class="content-view">
+          <button class="btn btn-primary mb-3 shadow-sm fw-bold" onclick="app.adminEditFlow(null)"><i class="bi bi-plus-lg"></i> 新增表單</button>
+          <div id="admin-flows-list"></div>
+        </div>
+
+        <!-- 後台維護 題目 -->
+        <div id="view-admin-questions" class="content-view">
+          <button class="btn btn-primary mb-3 shadow-sm fw-bold" onclick="app.adminEditQuestion(null)"><i class="bi bi-plus-lg"></i> 新增題目</button>
+          <div id="admin-questions-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Modal (共用) -->
+  <div class="modal fade" id="adminModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow border-0">
+        <div class="modal-header bg-light"><h5 class="modal-title fw-bold" id="adminModalTitle"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body" id="adminModalBody"></div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-primary fw-bold" id="adminModalSaveBtn">儲存</button>
         </div>
       </div>
     </div>
