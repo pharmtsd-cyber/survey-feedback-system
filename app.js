@@ -1,10 +1,10 @@
-const GAS_API = "https://script.google.com/macros/s/AKfycbzB4n24LjIVF316LDnGTkxFDe7byn17vgrpHU_lQEeZww8iR8K7qLDCj4e2NOdm_ulCBw/exec"; // 替換為你的GAS網址
+const GAS_API = "https://script.google.com/macros/s/AKfycbzB4n24LjIVF316LDnGTkxFDe7byn17vgrpHU_lQEeZww8iR8K7qLDCj4e2NOdm_ulCBw/exec"; 
 
 const app = {
   user: null,
   currentDept: '',
   currentFlow: null,
-  formMode: 'new', // 'new' 建立, 'edit' 修改
+  formMode: 'new', 
   questions: [],
   charts: {},
 
@@ -14,9 +14,7 @@ const app = {
     document.getElementById('end-date').value = today;
   },
 
-  showLoading(show) { 
-    document.getElementById('loading').style.display = show ? 'flex' : 'none'; 
-  },
+  showLoading(show) { document.getElementById('loading').style.display = show ? 'flex' : 'none'; },
 
   async api(payload) {
     this.showLoading(true);
@@ -33,15 +31,12 @@ const app = {
     }
   },
 
-  toggleSidebar() { 
-    document.getElementById('sidebar').classList.toggle('collapsed'); 
-  },
+  toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); },
 
   switchView(viewId, title = '') {
     document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
     if (title) document.getElementById('page-main-title').innerText = title;
-    // 進入表單畫面時，隱藏日期篩選器
     document.getElementById('date-filter-container').style.display = (viewId === 'view-form') ? 'none' : 'flex';
   },
 
@@ -50,18 +45,15 @@ const app = {
     if(target) target.closest('li').classList.add('active');
   },
 
-  // RWD 雙模式登入
   async login(mode) {
     const empId = document.getElementById('login-emp-id').value;
     if(!empId) return alert("請輸入員工編號");
     
-    // 切換 RWD 模式
     document.body.className = mode === 'mobile' ? 'mobile-mode' : 'desktop-mode';
 
     this.user = await this.api({ action: 'login', empId });
     document.getElementById('user-info').innerText = `${this.user.empName}`;
     
-    // 動態渲染側邊欄單位
     let menuHtml = '';
     this.user.availableDepts.forEach(d => {
       menuHtml += `<li><a onclick="app.loadDeptFlows('${d}', this)"><i class="bi bi-folder2-open"></i> <span class="sidebar-text">${d}</span></a></li>`;
@@ -120,7 +112,7 @@ const app = {
     for(let qId in data) {
       html += `<div class="col-md-6 col-12 mb-4"><div class="card shadow-sm border-0"><div class="card-body"><canvas id="dash-chart-${qId}"></canvas></div></div></div>`;
     }
-    container.innerHTML = html; // 必須先寫入 HTML，Chart.js 才能抓到 Canvas
+    container.innerHTML = html; 
 
     for(let qId in data) {
       let canvas = document.getElementById(`dash-chart-${qId}`);
@@ -149,8 +141,17 @@ const app = {
     
     let html = '';
     flows.forEach(f => {
+      // 處理狀態標籤
+      let processBadge = f.processStatus === '正常' 
+        ? `<span class="badge bg-success shadow-sm">狀態: 正常</span>` 
+        : (f.processStatus === '異常' ? `<span class="badge bg-danger shadow-sm">狀態: 異常</span>` : '');
+
       let statusHtml = f.status === '已完成' 
-        ? `<div class="text-end"><span class="badge bg-success rounded-pill px-3">已填寫</span><br><small class="text-muted"><i class="bi bi-clock ms-2"></i> ${f.time}</small></div>`
+        ? `<div class="text-end">
+             ${processBadge}<br>
+             <small class="text-muted fw-bold d-block mt-1"><i class="bi bi-person"></i> ${f.empName}</small>
+             <small class="text-muted"><i class="bi bi-clock"></i> ${f.time}</small>
+           </div>`
         : `<span class="badge bg-secondary rounded-pill px-3 py-2">未完成</span>`;
       
       let clickAction = f.status === '已完成' 
@@ -210,8 +211,13 @@ const app = {
     });
   },
 
+  // 修復：強制導航回目前的單位清單
   goBack() { 
-    this.refreshCurrentPage(); 
+    if(this.currentDept) {
+      this.loadDeptFlows(this.currentDept);
+    } else {
+      this.loadDashboard();
+    }
   },
 
   async deleteRecord() {
@@ -223,10 +229,8 @@ const app = {
 
   fileToBase64(file) {
     return new Promise((resolve, reject) => {
-      const r = new FileReader(); 
-      r.readAsDataURL(file);
-      r.onload = () => resolve(r.result); 
-      r.onerror = e => reject(e);
+      const r = new FileReader(); r.readAsDataURL(file);
+      r.onload = () => resolve(r.result); r.onerror = e => reject(e);
     });
   },
 
@@ -253,7 +257,6 @@ const app = {
         if (fileInput && fileInput.files.length > 0) {
           value = await this.fileToBase64(fileInput.files[0]);
         } else if (this.formMode === 'edit') {
-          // 修改時，若未選擇新圖，沿用舊圖 URL
           const existingImg = fileInput ? fileInput.parentElement.querySelector('img') : null;
           if (existingImg) value = existingImg.src;
         }
