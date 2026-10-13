@@ -1,4 +1,14 @@
-body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; }
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; overflow-x: hidden;}
+
+/* Loading */
+.loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.7); z-index: 9999; justify-content: center; align-items: center; }
+
+/* 頁面切換 */
+.page-view { display: none; }
+.page-view.active { display: block; }
+
+.content-view { display: none; }
+.content-view.active { display: block; }
 
 /* 側邊欄與主內容容器 */
 #wrapper { display: flex; width: 100%; align-items: stretch; min-height: 100vh; }
@@ -10,16 +20,11 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-
 }
 #sidebar.collapsed { margin-left: -250px; }
 #sidebar .sidebar-header { padding: 20px; background: #212529; }
-#sidebar ul.components { padding: 20px 0; border-bottom: 1px solid #47748b; }
-#sidebar ul p { color: #fff; padding: 10px; }
-#sidebar ul li a { padding: 15px; font-size: 1.1em; display: block; color: #cbd5e0; text-decoration: none; cursor: pointer; }
+#sidebar ul.components { padding: 10px 0; }
+#sidebar ul li a { padding: 15px 20px; font-size: 1.1em; display: block; color: #cbd5e0; text-decoration: none; cursor: pointer; transition: 0.2s;}
 #sidebar ul li a:hover { color: #fff; background: #495057; }
-#sidebar ul li.active > a { background: #0d6efd; color: #fff; }
+#sidebar ul li.active > a { background: #0d6efd; color: #fff; border-left: 4px solid #fff;}
 
 /* 主內容區 */
 #content { width: 100%; padding: 20px; transition: all 0.3s; }
-.navbar-light { background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.08); margin-bottom: 20px; border-radius: 8px;}
-
-/* 頁面切換 */
-.page-view { display: none; }
-.page-view.active { display: block; }
+.navbar { background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.04); border-radius: 8px;}
