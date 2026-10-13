@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
+<body class="desktop-mode">
 
   <!-- Loading 遮罩 -->
   <div class="loading-overlay" id="loading"><div class="spinner-border text-primary" role="status"></div></div>
@@ -20,12 +20,15 @@
       <div class="col-md-5">
         <div class="card shadow border-0">
           <div class="card-body p-5">
-            <div class="text-center mb-4 text-primary">
-              <i class="bi bi-ui-checks-grid" style="font-size: 3rem;"></i>
-            </div>
+            <div class="text-center mb-4 text-primary"><i class="bi bi-ui-checks-grid" style="font-size: 3rem;"></i></div>
             <h3 class="text-center mb-4 fw-bold text-dark">問卷回饋系統登入</h3>
-            <input type="text" id="login-emp-id" class="form-control form-control-lg mb-4" placeholder="請輸入員工編號">
-            <button class="btn btn-primary btn-lg w-100 fw-bold" onclick="app.login()">登 入</button>
+            <input type="text" id="login-emp-id" class="form-control form-control-lg mb-4 text-center fw-bold" placeholder="請輸入員工編號">
+            
+            <!-- 雙版本登入按鈕 -->
+            <div class="d-grid gap-3">
+              <button class="btn btn-outline-primary btn-lg fw-bold" onclick="app.login('desktop')"><i class="bi bi-pc-display me-2"></i>桌機版登入</button>
+              <button class="btn btn-primary btn-lg fw-bold" onclick="app.login('mobile')"><i class="bi bi-phone me-2"></i>手機版登入</button>
+            </div>
           </div>
         </div>
       </div>
@@ -35,23 +38,17 @@
   <!-- 系統主畫面 -->
   <div id="main-system" class="page-view" style="display:none;">
     <div id="wrapper">
+      
       <!-- 側邊欄 -->
       <nav id="sidebar">
         <div class="sidebar-header d-flex flex-column align-items-center py-4">
           <i class="bi bi-ui-checks-grid fs-1 text-primary sidebar-icon mb-2"></i>
           <h5 class="fw-bold sidebar-text text-center w-100">問卷回饋系統</h5>
-          <small id="user-info" class="text-muted sidebar-text mt-1 text-center w-100"></small>
+          <small id="user-info" class="text-muted sidebar-text mt-1 text-center w-100 fw-bold"></small>
         </div>
-        
         <ul class="list-unstyled components">
-          <li class="active">
-            <a href="#" onclick="app.loadDashboard(this)">
-              <i class="bi bi-house-door"></i> <span class="sidebar-text">系統總覽</span>
-            </a>
-          </li>
-          <div id="dept-menu-container">
-            <!-- 單位選單動態產生區塊 -->
-          </div>
+          <li class="active"><a href="#" onclick="app.loadDashboard(this)"><i class="bi bi-house-door"></i> <span class="sidebar-text">系統總覽</span></a></li>
+          <div id="dept-menu-container"></div>
         </ul>
       </nav>
 
@@ -59,48 +56,36 @@
       <div id="content">
         <!-- 頂部精簡控制區 (大頭貼 + 標題 + 日期篩選) -->
         <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3 bg-white p-3 rounded shadow-sm border-0">
-          
           <div class="d-flex align-items-center gap-3">
-            <!-- 點擊大頭貼收合側邊欄 -->
             <div onclick="app.toggleSidebar()" style="cursor: pointer;" title="展開/收合選單" class="text-primary hover-scale">
               <i class="bi bi-person-circle" style="font-size: 2.5rem; line-height: 1;"></i>
             </div>
             <h4 id="page-main-title" class="fw-bold mb-0 text-dark">系統總覽</h4>
           </div>
           
-          <!-- 日期區間篩選 (填寫表單時會自動隱藏) -->
           <div class="d-flex align-items-center gap-2 bg-light px-3 py-2 rounded border" id="date-filter-container">
-            <label class="fw-bold text-secondary mb-0 text-nowrap"><i class="bi bi-calendar-range"></i> 篩選區間：</label>
-            <input type="date" id="start-date" class="form-control form-control-sm border-0 bg-transparent fw-bold" onchange="app.refreshCurrentPage()">
+            <input type="date" id="start-date" class="form-control form-control-sm border-0 bg-transparent fw-bold text-primary" onchange="app.refreshCurrentPage()">
             <span class="text-muted fw-bold">~</span>
-            <input type="date" id="end-date" class="form-control form-control-sm border-0 bg-transparent fw-bold" onchange="app.refreshCurrentPage()">
+            <input type="date" id="end-date" class="form-control form-control-sm border-0 bg-transparent fw-bold text-primary" onchange="app.refreshCurrentPage()">
           </div>
-
         </div>
 
         <!-- 首頁總覽區 -->
         <div id="view-dashboard" class="content-view active">
           <div class="row">
-            <!-- 異常卡片 -->
             <div class="col-md-6 mb-3">
               <div class="card bg-danger text-white shadow-sm h-100 border-0">
                 <div class="card-header border-0 fs-5"><i class="bi bi-exclamation-triangle"></i> 異常待處理 <span class="badge bg-light text-danger float-end fs-6 rounded-pill" id="dash-exc-count">0</span></div>
-                <div class="card-body">
-                  <ul id="dash-exc-list" class="list-unstyled mb-0" style="max-height: 250px; overflow-y: auto;"></ul>
-                </div>
+                <div class="card-body"><ul id="dash-exc-list" class="list-unstyled mb-0" style="max-height: 250px; overflow-y: auto;"></ul></div>
               </div>
             </div>
-            <!-- 未完成卡片 -->
             <div class="col-md-6 mb-3">
               <div class="card bg-warning text-dark shadow-sm h-100 border-0">
-                <div class="card-header border-0 fs-5"><i class="bi bi-clock-history"></i> 未完成問卷清單</div>
-                <div class="card-body">
-                  <ul id="dash-inc-list" class="list-unstyled mb-0" style="max-height: 250px; overflow-y: auto;"></ul>
-                </div>
+                <div class="card-header border-0 fs-5"><i class="bi bi-clock-history"></i> 未完成清單</div>
+                <div class="card-body"><ul id="dash-inc-list" class="list-unstyled mb-0" style="max-height: 250px; overflow-y: auto;"></ul></div>
               </div>
             </div>
           </div>
-          <!-- 溫度圖表區 -->
           <h5 class="mt-4 fw-bold text-secondary"><i class="bi bi-graph-up"></i> 溫度監控折線圖</h5>
           <div id="dash-charts" class="row mt-2"></div>
         </div>
@@ -110,25 +95,16 @@
           <div class="list-group" id="dept-flow-list"></div>
         </div>
 
-        <!-- 問卷填寫區 -->
+        <!-- 問卷填寫/編輯區 -->
         <div id="view-form" class="content-view">
-          <button class="btn btn-outline-secondary btn-sm mb-3 shadow-sm fw-bold" onclick="app.goBack()"><i class="bi bi-arrow-left"></i> 返回清單</button>
           <div id="form-container"></div>
-          <button id="btn-submit-form" class="btn btn-success btn-lg w-100 mt-4 fw-bold shadow" onclick="app.submitForm()">送出問卷</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 動作選擇 Modal -->
-  <div class="modal fade" id="actionModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
-      <div class="modal-content border-0 shadow">
-        <div class="modal-header bg-light border-0"><h5 class="modal-title fw-bold text-dark">選擇動作</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <div class="modal-body d-grid gap-3 p-4">
-          <button class="btn btn-outline-primary fw-bold" onclick="app.openForm('refill')"><i class="bi bi-file-earmark-plus"></i> 建立新紀錄 (再次填寫)</button>
-          <button class="btn btn-outline-warning text-dark fw-bold" onclick="app.openForm('edit')"><i class="bi bi-pencil-square"></i> 修改此紀錄</button>
-          <button class="btn btn-outline-secondary fw-bold" onclick="app.openForm('view')"><i class="bi bi-eye"></i> 僅瀏覽紀錄</button>
+          
+          <!-- 底部功能按鈕群 -->
+          <div class="d-flex gap-2 mt-4 pb-4">
+            <button class="btn btn-secondary flex-fill fw-bold shadow-sm py-2" onclick="app.goBack()">返回</button>
+            <button class="btn btn-danger flex-fill fw-bold shadow-sm py-2" id="btn-delete-form" onclick="app.deleteRecord()" style="display:none;">刪除紀錄</button>
+            <button class="btn btn-primary flex-fill fw-bold shadow-sm py-2" id="btn-submit-form" onclick="app.submitForm()">確認儲存</button>
+          </div>
         </div>
       </div>
     </div>
