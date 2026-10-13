@@ -1,12 +1,7 @@
 const GAS_API = "https://script.google.com/macros/s/AKfycbzB4n24LjIVF316LDnGTkxFDe7byn17vgrpHU_lQEeZww8iR8K7qLDCj4e2NOdm_ulCBw/exec"; 
 
 const app = {
-  user: null,
-  currentDept: '',
-  currentFlow: null,
-  formMode: 'new', 
-  questions: [],
-  charts: {},
+  user: null, currentDept: '', currentFlow: null, formMode: 'new', questions: [], charts: {},
 
   init() {
     const today = new Date().toISOString().split('T')[0];
@@ -50,7 +45,6 @@ const app = {
     if(!empId) return alert("請輸入員工編號");
     
     document.body.className = mode === 'mobile' ? 'mobile-mode' : 'desktop-mode';
-
     this.user = await this.api({ action: 'login', empId });
     document.getElementById('user-info').innerText = `${this.user.empName}`;
     
@@ -96,6 +90,7 @@ const app = {
     this.loadDashboardCharts(startDate, endDate);
   },
 
+  // 確保 Chart.js 抓得到畫面上的 Canvas
   async loadDashboardCharts(startDate, endDate) {
     const data = await this.api({ action: 'getTempHistoryByDate', startDate, endDate, department: this.user.dept });
     const container = document.getElementById('dash-charts');
@@ -114,20 +109,23 @@ const app = {
     }
     container.innerHTML = html; 
 
-    for(let qId in data) {
-      let canvas = document.getElementById(`dash-chart-${qId}`);
-      if(canvas) {
-        let ctx = canvas.getContext('2d');
-        let labels = data[qId].data.map(d => d.time);
-        let values = data[qId].data.map(d => d.value);
-        
-        this.charts[qId] = new Chart(ctx, {
-          type: 'line',
-          data: { labels: labels, datasets: [{ label: data[qId].title, data: values, borderColor: '#0d6efd', backgroundColor: 'rgba(13, 110, 253, 0.1)', fill: true, tension: 0.3 }] },
-          options: { responsive: true, plugins: { legend: { position: 'top' } } }
-        });
+    // 延遲一小段時間確保 DOM 渲染完畢
+    setTimeout(() => {
+      for(let qId in data) {
+        let canvas = document.getElementById(`dash-chart-${qId}`);
+        if(canvas) {
+          let ctx = canvas.getContext('2d');
+          this.charts[qId] = new Chart(ctx, {
+            type: 'line',
+            data: { 
+              labels: data[qId].data.map(d => d.time), 
+              datasets: [{ label: data[qId].title, data: data[qId].data.map(d => d.value), borderColor: '#0d6efd', backgroundColor: 'rgba(13, 110, 253, 0.1)', fill: true, tension: 0.3 }] 
+            },
+            options: { responsive: true, plugins: { legend: { position: 'top' } } }
+          });
+        }
       }
-    }
+    }, 100);
   },
 
   async loadDeptFlows(dept, menuItem = null) {
@@ -140,29 +138,53 @@ const app = {
     const flows = await this.api({ action: 'getDeptFlows', department: dept, startDate, endDate });
     
     let html = '';
-    flows.forEach(f => {
-      // 處理狀態標籤
-      let processBadge = f.processStatus === '正常' 
-        ? `<span class="badge bg-success shadow-sm">狀態: 正常</span>` 
-        : (f.processStatus === '異常' ? `<span class="badge bg-danger shadow-sm">狀態: 異常</span>` : '');
+    flows.forEach((f, index) => {
+      if (f.count === 0) {
+        // 未完成：點擊直接進入填寫
+        html += `
+          <div class="accordion-item mb-3 shadow-sm border-0 rounded">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed bg-white text-dark rounded" type="button" onclick="app.openForm('new', '${f.id}', '${f.name}')">
+                <strong class="fs-5">${f.name}</strong>
+                <span class="badge bg-secondary rounded-pill px-3 ms-auto">未完成</span>
+              </button>
+            </h2>
+          </div>`;
+      } else {
+        // 已完成：點擊展開紀錄清單
+        let listHtml = '';
+        f.records.forEach(r => {
+          let badge = r.isException ? `<span class="badge bg-danger ms-auto shadow-sm">狀態: 異常</span>` : `<span class="badge bg-success ms-auto shadow-sm">狀態: 正常</span>`;
+          listHtml += `
+            <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3 cursor-pointer" onclick="app.openForm('edit', '${f.id}', '${f.name}', '${r.recordId}')">
+              <div>
+                <div class="fw-bold"><i class="bi bi-person text-primary"></i> ${r.empName}</div>
+                <small class="text-muted"><i class="bi bi-clock"></i> ${r.time}</small>
+              </div>
+              ${badge}
+            </div>`;
+        });
 
-      let statusHtml = f.status === '已完成' 
-        ? `<div class="text-end">
-             ${processBadge}<br>
-             <small class="text-muted fw-bold d-block mt-1"><i class="bi bi-person"></i> ${f.empName}</small>
-             <small class="text-muted"><i class="bi bi-clock"></i> ${f.time}</small>
-           </div>`
-        : `<span class="badge bg-secondary rounded-pill px-3 py-2">未完成</span>`;
-      
-      let clickAction = f.status === '已完成' 
-        ? `app.openForm('edit', '${f.id}', '${f.name}', '${f.recordId}')` 
-        : `app.openForm('new', '${f.id}', '${f.name}')`;
-
-      html += `<button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center mb-3 shadow-sm rounded border-0" onclick="${clickAction}">
-                 <strong class="fs-5">${f.name}</strong> ${statusHtml}
-               </button>`;
+        html += `
+          <div class="accordion-item mb-3 shadow-sm border-0 rounded">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed bg-white text-dark rounded" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${index}">
+                <strong class="fs-5">${f.name}</strong>
+                <span class="badge bg-success rounded-pill px-3 ms-auto">完成 ${f.count} 次</span>
+              </button>
+            </h2>
+            <div id="collapse-${index}" class="accordion-collapse collapse" data-bs-parent="#dept-accordion">
+              <div class="accordion-body p-0">
+                <div class="p-3 bg-light text-end">
+                  <button class="btn btn-sm btn-outline-primary fw-bold" onclick="app.openForm('new', '${f.id}', '${f.name}')"><i class="bi bi-plus-lg"></i> 新增一筆紀錄</button>
+                </div>
+                <div class="list-group list-group-flush">${listHtml}</div>
+              </div>
+            </div>
+          </div>`;
+      }
     });
-    document.getElementById('dept-flow-list').innerHTML = html;
+    document.getElementById('dept-accordion').innerHTML = html;
   },
 
   async openForm(mode, flowId, flowName, recordId = null) {
@@ -198,11 +220,10 @@ const app = {
           html += `<div class="form-check mb-2"><input type="checkbox" name="${q.qId}" value="${opt}" class="form-check-input" ${checked}> <label class="form-check-label">${opt}</label></div>`;
         });
       } else if (q.type === '數字' || q.type === '溫度') {
-        html += `<input type="number" id="${q.qId}" class="form-control form-control-lg bg-light" value="${val}">`;
+        html += `<input type="number" id="${q.qId}" class="form-control form-control-lg bg-light border-0 shadow-sm" value="${val}">`;
       } else if (q.type === '照片') {
         if(mode === 'edit' && val.startsWith('http')) {
-          html += `<div class="mb-2"><img src="${val}" class="img-fluid rounded shadow-sm" style="max-height:200px;"></div>
-                   <small class="text-muted d-block mb-2">上傳新照片將覆蓋舊照片</small>`;
+          html += `<div class="mb-2"><img src="${val}" class="img-fluid rounded shadow-sm" style="max-height:200px;"></div><small class="text-muted d-block mb-2">上傳新照片將覆蓋舊照片</small>`;
         }
         html += `<input type="file" accept="image/*" class="form-control" id="${q.qId}">`;
       }
@@ -211,19 +232,15 @@ const app = {
     });
   },
 
-  // 修復：強制導航回目前的單位清單
   goBack() { 
-    if(this.currentDept) {
-      this.loadDeptFlows(this.currentDept);
-    } else {
-      this.loadDashboard();
-    }
+    if(this.currentDept) this.loadDeptFlows(this.currentDept);
+    else this.loadDashboard();
   },
 
   async deleteRecord() {
-    if(!confirm("確定要刪除這筆紀錄嗎？刪除後將無法還原。")) return;
+    if(!confirm("確定要刪除這筆紀錄嗎？刪除後無法還原。")) return;
     await this.api({ action: 'deleteRecord', recordId: this.currentFlow.recordId });
-    alert("紀錄已成功刪除！");
+    alert("紀錄已刪除！");
     this.goBack();
   },
 
@@ -272,10 +289,29 @@ const app = {
     };
 
     const res = await this.api(payload);
-    if (res.exceptionTriggered) alert("儲存成功！\n系統提示：有數值超出正常區間，已轉入異常待處理。");
+    if (res.exceptionTriggered) alert("儲存成功！注意：有異常數值，已通報主管處理。");
     else alert("儲存成功！");
-    
     this.goBack();
+  },
+
+  // 後台維護功能
+  async loadAdmin(menuItem) {
+    this.setActiveMenu(menuItem);
+    this.switchView('view-admin', '後台維護 (唯讀)');
+    const data = await this.api({ action: 'getAdminData' });
+    
+    document.getElementById('admin-flows-list').innerHTML = data.flows.map(f => 
+      `<li class="list-group-item d-flex justify-content-between">
+         <span><b>${f.name}</b> <small class="text-muted">(${f.dept})</small></span>
+         <span class="badge ${f.active ? 'bg-success' : 'bg-secondary'}">${f.active ? '啟用' : '停用'}</span>
+       </li>`
+    ).join('');
+
+    document.getElementById('admin-questions-list').innerHTML = data.questions.map(q => 
+      `<li class="list-group-item">
+         <span class="badge bg-info text-dark me-2">${q.type}</span> <b>${q.title}</b> <small class="text-muted">[所屬 Flow: ${q.flowId}]</small>
+       </li>`
+    ).join('');
   }
 };
 window.onload = () => app.init();
