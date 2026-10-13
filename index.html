@@ -22,7 +22,6 @@
             <div class="text-center mb-4 text-primary"><i class="bi bi-ui-checks-grid" style="font-size: 3rem;"></i></div>
             <h3 class="text-center mb-4 fw-bold text-dark">問卷回饋系統登入</h3>
             <input type="text" id="login-emp-id" class="form-control form-control-lg mb-4 text-center fw-bold" placeholder="請輸入員工編號">
-            
             <div class="d-grid gap-3">
               <button class="btn btn-outline-primary btn-lg fw-bold" onclick="app.login('desktop')"><i class="bi bi-pc-display me-2"></i>桌機版登入</button>
               <button class="btn btn-primary btn-lg fw-bold" onclick="app.login('mobile')"><i class="bi bi-phone me-2"></i>手機版登入</button>
@@ -37,7 +36,7 @@
   <div id="main-system" class="page-view" style="display:none;">
     <div id="wrapper">
       
-      <!-- 側邊欄 (大頭貼按鈕移至此) -->
+      <!-- 側邊欄 -->
       <nav id="sidebar">
         <div class="sidebar-header d-flex flex-column align-items-center py-4" onclick="app.toggleSidebar()" style="cursor: pointer;" title="點擊展開/收合">
           <i class="bi bi-person-circle text-primary sidebar-icon mb-2 hover-scale"></i>
@@ -47,6 +46,7 @@
         <ul class="list-unstyled components">
           <li class="active"><a href="#" onclick="app.loadDashboard(this)"><i class="bi bi-house-door"></i> <span class="sidebar-text">系統總覽</span></a></li>
           <div id="dept-menu-container"></div>
+          <li><a href="#" onclick="app.loadAdmin(this)"><i class="bi bi-gear"></i> <span class="sidebar-text">後台維護</span></a></li>
         </ul>
       </nav>
 
@@ -54,9 +54,7 @@
       <div id="content">
         <!-- 頂部精簡控制區 -->
         <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3 bg-white p-3 rounded shadow-sm border-0">
-          
           <h4 id="page-main-title" class="fw-bold mb-0 text-dark">系統總覽</h4>
-          
           <div class="d-flex align-items-center gap-2 bg-light px-3 py-2 rounded border" id="date-filter-container">
             <input type="date" id="start-date" class="form-control form-control-sm border-0 bg-transparent fw-bold text-primary" onchange="app.refreshCurrentPage()">
             <span class="text-muted fw-bold">~</span>
@@ -84,20 +82,28 @@
           <div id="dash-charts" class="row mt-2"></div>
         </div>
 
-        <!-- 單位問卷清單區 -->
+        <!-- 單位問卷清單區 (手風琴介面) -->
         <div id="view-dept-flows" class="content-view">
-          <div class="list-group" id="dept-flow-list"></div>
+          <div class="accordion" id="dept-accordion"></div>
         </div>
 
         <!-- 問卷填寫/編輯區 -->
         <div id="view-form" class="content-view">
           <div id="form-container"></div>
-          
           <div class="d-flex gap-2 mt-4 pb-4">
             <button class="btn btn-secondary flex-fill fw-bold shadow-sm py-2" onclick="app.goBack()">返回清單</button>
             <button class="btn btn-danger flex-fill fw-bold shadow-sm py-2" id="btn-delete-form" onclick="app.deleteRecord()" style="display:none;">刪除</button>
             <button class="btn btn-primary flex-fill fw-bold shadow-sm py-2" id="btn-submit-form" onclick="app.submitForm()">確認儲存</button>
           </div>
+        </div>
+
+        <!-- 後台維護區 -->
+        <div id="view-admin" class="content-view">
+          <div class="alert alert-primary shadow-sm"><i class="bi bi-info-circle"></i> 提示：為確保資料庫安全，問卷設定的新增與刪除請前往 Google Sheets 原始檔操作。</div>
+          <h5 class="fw-bold mt-4">已啟用之問卷 (Flows)</h5>
+          <ul class="list-group mb-4" id="admin-flows-list"></ul>
+          <h5 class="fw-bold">題目庫 (Questions)</h5>
+          <ul class="list-group" id="admin-questions-list"></ul>
         </div>
       </div>
     </div>
