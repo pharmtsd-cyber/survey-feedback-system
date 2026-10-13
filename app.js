@@ -4,7 +4,7 @@ const app = {
   user: null,
   currentDept: '',
   currentFlow: null,
-  formMode: 'new',
+  formMode: 'new', // 'new' 建立, 'edit' 修改
   questions: [],
   charts: {},
 
@@ -14,7 +14,9 @@ const app = {
     document.getElementById('end-date').value = today;
   },
 
-  showLoading(show) { document.getElementById('loading').style.display = show ? 'flex' : 'none'; },
+  showLoading(show) { 
+    document.getElementById('loading').style.display = show ? 'flex' : 'none'; 
+  },
 
   async api(payload) {
     this.showLoading(true);
@@ -31,16 +33,15 @@ const app = {
     }
   },
 
-  toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); },
+  toggleSidebar() { 
+    document.getElementById('sidebar').classList.toggle('collapsed'); 
+  },
 
-  // 切換畫面時一併更改大標題，並控制日期篩選器是否顯示
   switchView(viewId, title = '') {
     document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
-    
     if (title) document.getElementById('page-main-title').innerText = title;
-    
-    // 如果是進入「填寫問卷」畫面，隱藏上方的日期篩選區塊避免干擾
+    // 進入表單畫面時，隱藏日期篩選器
     document.getElementById('date-filter-container').style.display = (viewId === 'view-form') ? 'none' : 'flex';
   },
 
@@ -49,28 +50,28 @@ const app = {
     if(target) target.closest('li').classList.add('active');
   },
 
-  async login() {
+  // RWD 雙模式登入
+  async login(mode) {
     const empId = document.getElementById('login-emp-id').value;
-    if(!empId) return alert("請輸入編號");
+    if(!empId) return alert("請輸入員工編號");
+    
+    // 切換 RWD 模式
+    document.body.className = mode === 'mobile' ? 'mobile-mode' : 'desktop-mode';
+
     this.user = await this.api({ action: 'login', empId });
     document.getElementById('user-info').innerText = `${this.user.empName}`;
     
-    // 依據 GAS 回傳的單位陣列，動態渲染側邊欄單位
+    // 動態渲染側邊欄單位
     let menuHtml = '';
     this.user.availableDepts.forEach(d => {
-      menuHtml += `<li>
-                    <a onclick="app.loadDeptFlows('${d}', this)">
-                      <i class="bi bi-folder2-open"></i> <span class="sidebar-text">${d}</span>
-                    </a>
-                   </li>`;
+      menuHtml += `<li><a onclick="app.loadDeptFlows('${d}', this)"><i class="bi bi-folder2-open"></i> <span class="sidebar-text">${d}</span></a></li>`;
     });
     document.getElementById('dept-menu-container').innerHTML = menuHtml;
 
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('main-system').style.display = 'block';
     
-    const homeBtn = document.querySelector('#sidebar ul li a');
-    this.loadDashboard(homeBtn);
+    this.loadDashboard(document.querySelector('#sidebar ul li a'));
   },
 
   refreshCurrentPage() {
@@ -85,22 +86,20 @@ const app = {
     const endDate = document.getElementById('end-date').value;
     
     const data = await this.api({ action: 'getDashboard', startDate, endDate, department: this.user.dept });
-    
     document.getElementById('dash-exc-count').innerText = data.exceptionCount;
     
-    // 渲染異常清單 (包含名稱、登記人、時間、異常數值)
     document.getElementById('dash-exc-list').innerHTML = data.exceptionsList.length > 0 
       ? data.exceptionsList.map(e => `
           <li class="mb-3 border-bottom border-light pb-2">
             <div class="fw-bold fs-6 mb-1">${e.flowName}</div>
             <div class="text-white-50 small mb-2"><i class="bi bi-person-fill"></i> ${e.empName} ｜ <i class="bi bi-clock"></i> ${e.time}</div>
-            <div class="bg-white text-danger px-2 py-1 rounded d-inline-block fw-bold shadow-sm">異常回報數值：${e.value}</div>
+            <div class="bg-white text-danger px-2 py-1 rounded d-inline-block fw-bold shadow-sm">${e.qTitle} : ${e.value}</div>
           </li>`).join('')
       : '<li>目前區間無異常。</li>';
       
     document.getElementById('dash-inc-list').innerHTML = data.incompleteFlows.length > 0
       ? data.incompleteFlows.map(f => `<li class="mb-2 fs-6"><i class="bi bi-x-circle text-danger me-2"></i> ${f.name}</li>`).join('')
-      : '<li><i class="bi bi-check-circle text-success fs-5 me-2"></i> 區間內指定任務全數完成！</li>';
+      : '<li><i class="bi bi-check-circle text-success fs-5 me-2"></i> 指定任務全數完成！</li>';
 
     this.loadDashboardCharts(startDate, endDate);
   },
@@ -108,30 +107,34 @@ const app = {
   async loadDashboardCharts(startDate, endDate) {
     const data = await this.api({ action: 'getTempHistoryByDate', startDate, endDate, department: this.user.dept });
     const container = document.getElementById('dash-charts');
-    container.innerHTML = '';
     
     for(let qId in this.charts) { this.charts[qId].destroy(); }
+    this.charts = {};
 
     if(Object.keys(data).length === 0) {
       container.innerHTML = '<div class="col-12"><p class="text-muted">指定區間內無溫度紀錄資料。</p></div>';
       return;
     }
 
+    let html = '';
     for(let qId in data) {
-      let canvasId = `dash-chart-${qId}`;
-      container.innerHTML += `<div class="col-md-6 mb-4"><div class="card shadow-sm border-0"><div class="card-body"><canvas id="${canvasId}"></canvas></div></div></div>`;
+      html += `<div class="col-md-6 col-12 mb-4"><div class="card shadow-sm border-0"><div class="card-body"><canvas id="dash-chart-${qId}"></canvas></div></div></div>`;
     }
+    container.innerHTML = html; // 必須先寫入 HTML，Chart.js 才能抓到 Canvas
 
     for(let qId in data) {
-      let ctx = document.getElementById(`dash-chart-${qId}`).getContext('2d');
-      let labels = data[qId].data.map(d => d.time);
-      let values = data[qId].data.map(d => d.value);
-      
-      this.charts[qId] = new Chart(ctx, {
-        type: 'line',
-        data: { labels: labels, datasets: [{ label: data[qId].title, data: values, borderColor: '#0d6efd', backgroundColor: 'rgba(13, 110, 253, 0.1)', fill: true, tension: 0.3 }] },
-        options: { responsive: true, plugins: { legend: { position: 'top' } } }
-      });
+      let canvas = document.getElementById(`dash-chart-${qId}`);
+      if(canvas) {
+        let ctx = canvas.getContext('2d');
+        let labels = data[qId].data.map(d => d.time);
+        let values = data[qId].data.map(d => d.value);
+        
+        this.charts[qId] = new Chart(ctx, {
+          type: 'line',
+          data: { labels: labels, datasets: [{ label: data[qId].title, data: values, borderColor: '#0d6efd', backgroundColor: 'rgba(13, 110, 253, 0.1)', fill: true, tension: 0.3 }] },
+          options: { responsive: true, plugins: { legend: { position: 'top' } } }
+        });
+      }
     }
   },
 
@@ -147,12 +150,12 @@ const app = {
     let html = '';
     flows.forEach(f => {
       let statusHtml = f.status === '已完成' 
-        ? `<div class="text-end"><span class="badge bg-success rounded-pill px-3">已完成</span><br><small class="text-muted"><i class="bi bi-person"></i> ${f.empName} <i class="bi bi-clock ms-2"></i> ${f.time}</small></div>`
+        ? `<div class="text-end"><span class="badge bg-success rounded-pill px-3">已填寫</span><br><small class="text-muted"><i class="bi bi-clock ms-2"></i> ${f.time}</small></div>`
         : `<span class="badge bg-secondary rounded-pill px-3 py-2">未完成</span>`;
       
       let clickAction = f.status === '已完成' 
-        ? `app.showActionModal('${f.id}', '${f.name}', '${f.recordId}')` 
-        : `app.startNewFlow('${f.id}', '${f.name}')`;
+        ? `app.openForm('edit', '${f.id}', '${f.name}', '${f.recordId}')` 
+        : `app.openForm('new', '${f.id}', '${f.name}')`;
 
       html += `<button class="list-group-item list-group-item-action d-flex justify-content-between align-items-center mb-3 shadow-sm rounded border-0" onclick="${clickAction}">
                  <strong class="fs-5">${f.name}</strong> ${statusHtml}
@@ -161,36 +164,22 @@ const app = {
     document.getElementById('dept-flow-list').innerHTML = html;
   },
 
-  showActionModal(flowId, flowName, recordId) {
+  async openForm(mode, flowId, flowName, recordId = null) {
+    this.formMode = mode;
     this.currentFlow = { id: flowId, name: flowName, recordId: recordId };
-    new bootstrap.Modal(document.getElementById('actionModal')).show();
-  },
-
-  startNewFlow(flowId, flowName) {
-    this.currentFlow = { id: flowId, name: flowName, recordId: null };
-    this.openForm('new');
-  },
-
-  async openForm(mode) {
-    let modal = bootstrap.Modal.getInstance(document.getElementById('actionModal'));
-    if(modal) modal.hide();
     
-    this.formMode = mode; 
-    let formModeText = mode === 'view' ? ' (唯讀模式)' : (mode === 'edit' ? ' (修改紀錄)' : '');
-    this.switchView('view-form', `${this.currentFlow.name}${formModeText}`);
+    this.switchView('view-form', `${flowName} ${mode === 'edit' ? '(修改紀錄)' : ''}`);
+    document.getElementById('btn-delete-form').style.display = mode === 'edit' ? 'block' : 'none';
     
-    this.questions = await this.api({ action: 'getQuestions', flowId: this.currentFlow.id });
+    this.questions = await this.api({ action: 'getQuestions', flowId: flowId });
     
     let oldAnswers = {};
-    if(mode === 'edit' || mode === 'view') {
-      oldAnswers = await this.api({ action: 'getRecord', recordId: this.currentFlow.recordId });
-    }
+    if(mode === 'edit') oldAnswers = await this.api({ action: 'getRecord', recordId: recordId });
 
     const container = document.getElementById('form-container');
     container.innerHTML = '';
     
     this.questions.forEach(q => {
-      const isReadonly = mode === 'view' ? 'disabled' : '';
       const val = oldAnswers[q.qId] || '';
       const reqMark = q.isRequired ? `<span class="text-danger ms-1">*</span>` : '';
       
@@ -199,37 +188,45 @@ const app = {
       if(q.type === '單選') {
         q.options.forEach(opt => {
           const checked = val === opt ? 'checked' : '';
-          html += `<div class="form-check mb-2"><input type="radio" name="${q.qId}" value="${opt}" class="form-check-input" ${checked} ${isReadonly}> <label class="form-check-label">${opt}</label></div>`;
+          html += `<div class="form-check mb-2"><input type="radio" name="${q.qId}" value="${opt}" class="form-check-input" ${checked}> <label class="form-check-label">${opt}</label></div>`;
         });
       } else if (q.type === '多選') {
         let valArr = val.split(',');
         q.options.forEach(opt => {
           const checked = valArr.includes(opt) ? 'checked' : '';
-          html += `<div class="form-check mb-2"><input type="checkbox" name="${q.qId}" value="${opt}" class="form-check-input" ${checked} ${isReadonly}> <label class="form-check-label">${opt}</label></div>`;
+          html += `<div class="form-check mb-2"><input type="checkbox" name="${q.qId}" value="${opt}" class="form-check-input" ${checked}> <label class="form-check-label">${opt}</label></div>`;
         });
       } else if (q.type === '數字' || q.type === '溫度') {
-        html += `<input type="number" id="${q.qId}" class="form-control form-control-lg" value="${val}" ${isReadonly}>`;
+        html += `<input type="number" id="${q.qId}" class="form-control form-control-lg bg-light" value="${val}">`;
       } else if (q.type === '照片') {
-        if((mode === 'view' || mode === 'edit') && val.startsWith('http')) {
-          html += `<div class="mb-2"><img src="${val}" class="img-fluid rounded shadow-sm" style="max-height:200px;"></div>`;
-          if (mode === 'edit') html += `<small class="text-muted d-block mb-2">上傳新照片將覆蓋舊照片</small><input type="file" accept="image/*" class="form-control" id="${q.qId}">`;
-        } else {
-          html += `<input type="file" accept="image/*" class="form-control" id="${q.qId}" ${isReadonly}>`;
+        if(mode === 'edit' && val.startsWith('http')) {
+          html += `<div class="mb-2"><img src="${val}" class="img-fluid rounded shadow-sm" style="max-height:200px;"></div>
+                   <small class="text-muted d-block mb-2">上傳新照片將覆蓋舊照片</small>`;
         }
+        html += `<input type="file" accept="image/*" class="form-control" id="${q.qId}">`;
       }
       html += `</div></div>`;
       container.innerHTML += html;
     });
-
-    document.getElementById('btn-submit-form').style.display = mode === 'view' ? 'none' : 'block';
   },
 
-  goBack() { this.refreshCurrentPage(); },
+  goBack() { 
+    this.refreshCurrentPage(); 
+  },
+
+  async deleteRecord() {
+    if(!confirm("確定要刪除這筆紀錄嗎？刪除後將無法還原。")) return;
+    await this.api({ action: 'deleteRecord', recordId: this.currentFlow.recordId });
+    alert("紀錄已成功刪除！");
+    this.goBack();
+  },
 
   fileToBase64(file) {
     return new Promise((resolve, reject) => {
-      const r = new FileReader(); r.readAsDataURL(file);
-      r.onload = () => resolve(r.result); r.onerror = e => reject(e);
+      const r = new FileReader(); 
+      r.readAsDataURL(file);
+      r.onload = () => resolve(r.result); 
+      r.onerror = e => reject(e);
     });
   },
 
@@ -256,6 +253,7 @@ const app = {
         if (fileInput && fileInput.files.length > 0) {
           value = await this.fileToBase64(fileInput.files[0]);
         } else if (this.formMode === 'edit') {
+          // 修改時，若未選擇新圖，沿用舊圖 URL
           const existingImg = fileInput ? fileInput.parentElement.querySelector('img') : null;
           if (existingImg) value = existingImg.src;
         }
@@ -271,8 +269,8 @@ const app = {
     };
 
     const res = await this.api(payload);
-    if (res.exceptionTriggered) alert("問卷已送出！注意：有數值超出正常區間，已通報異常處理。");
-    else alert("問卷儲存成功！");
+    if (res.exceptionTriggered) alert("儲存成功！\n系統提示：有數值超出正常區間，已轉入異常待處理。");
+    else alert("儲存成功！");
     
     this.goBack();
   }
