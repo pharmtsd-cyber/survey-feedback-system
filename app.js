@@ -1,12 +1,19 @@
-const GAS_API = "https://script.google.com/macros/s/AKfycbzB4n24LjIVF316LDnGTkxFDe7byn17vgrpHU_lQEeZww8iR8K7qLDCj4e2NOdm_ulCBw/exec"; 
+const GAS_API = "https://script.google.com/macros/s/AKfycbzB4n24LjIVF316LDnGTkxFDe7byn17vgrpHU_lQEeZww8iR8K7qLDCj4e2NOdm_ulCBw/exec";
+
+// 時區安全日期抓取 (回傳 YYYY-MM-DD)
+function getLocalToday() {
+  const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+  return new Date(Date.now() - tzOffset).toISOString().split('T')[0];
+}
 
 const app = {
-  user: null, currentDept: '', currentFlow: null, formMode: 'new', questions: [], charts: {},
+  user: null, currentDept: '', currentFlow: null, formMode: 'new', questions: [], charts: {}, calendar: null,
 
   init() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalToday();
     document.getElementById('start-date').value = today;
     document.getElementById('end-date').value = today;
+    document.getElementById('target-date').value = today;
   },
 
   showLoading(show) { document.getElementById('loading').style.display = show ? 'flex' : 'none'; },
@@ -32,7 +39,10 @@ const app = {
     document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
     if (title) document.getElementById('page-main-title').innerText = title;
-    document.getElementById('date-filter-container').style.display = (viewId === 'view-form') ? 'none' : 'flex';
+    
+    // 控制頂部日期篩選器的顯示邏輯
+    document.getElementById('date-range-container').style.display = (viewId === 'view-dashboard') ? 'flex' : 'none';
+    document.getElementById('date-single-container').style.display = (viewId === 'view-dept-flows') ? 'flex' : 'none';
   },
 
   setActiveMenu(target) {
@@ -92,7 +102,6 @@ const app = {
   async loadDashboardCharts(startDate, endDate) {
     const data = await this.api({ action: 'getTempHistoryByDate', startDate, endDate, department: this.user.dept });
     const container = document.getElementById('dash-charts');
-    
     for(let qId in this.charts) { this.charts[qId].destroy(); }
     this.charts = {};
 
@@ -102,12 +111,9 @@ const app = {
     }
 
     let html = '';
-    for(let qId in data) {
-      html += `<div class="col-md-6 col-12 mb-4"><div class="card shadow-sm border-0"><div class="card-body"><canvas id="dash-chart-${qId}"></canvas></div></div></div>`;
-    }
+    for(let qId in data) html += `<div class="col-md-6 col-12 mb-4"><div class="card shadow-sm border-0"><div class="card-body"><canvas id="dash-chart-${qId}"></canvas></div></div></div>`;
     container.innerHTML = html; 
 
-    // 確保 DOM 載入後才綁定 Chart
     setTimeout(() => {
       for(let qId in data) {
         let canvas = document.getElementById(`dash-chart-${qId}`);
@@ -115,10 +121,7 @@ const app = {
           let ctx = canvas.getContext('2d');
           this.charts[qId] = new Chart(ctx, {
             type: 'line',
-            data: { 
-              labels: data[qId].data.map(d => d.time), 
-              datasets: [{ label: data[qId].title, data: data[qId].data.map(d => d.value), borderColor: '#0d6efd', backgroundColor: 'rgba(13, 110, 253, 0.1)', fill: true, tension: 0.3 }] 
-            },
+            data: { labels: data[qId].data.map(d => d.time), datasets: [{ label: data[qId].title, data: data[qId].data.map(d => d.value), borderColor: '#0d6efd', backgroundColor: 'rgba(13, 110, 253, 0.1)', fill: true, tension: 0.3 }] },
             options: { responsive: true, plugins: { legend: { position: 'top' } } }
           });
         }
@@ -126,17 +129,42 @@ const app = {
     }, 100);
   },
 
+  // 行事曆視圖
+  async loadCalendar(menuItem) {
+    this.setActiveMenu(menuItem);
+    this.switchView('view-calendar', '行事曆總覽');
+    
+    // 初始化或重新渲染 FullCalendar
+    let calendarEl = document.getElementById('calendar-container');
+    if (!this.calendar) {
+      this.calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'zh-tw',
+        events: async (info, successCallback, failureCallback) => {
+          try {
+            // 抓取當月資料
+            const yearMonth = info.startStr.substring(0, 7); // "2023-10"
+            const data = await this.api({ action: 'getCalendar', yearMonth: yearMonth, department: this.user.dept });
+            successCallback(data);
+          } catch(e) { failureCallback(e); }
+        }
+      });
+      this.calendar.render();
+    } else {
+      this.calendar.refetchEvents();
+    }
+  },
+
+  // 問卷清單 (單日切換)
   async loadDeptFlows(dept, menuItem = null) {
     if(menuItem) this.setActiveMenu(menuItem);
     this.currentDept = dept;
     this.switchView('view-dept-flows', `${dept} 問卷清單`);
     
-    const startDate = document.getElementById('start-date').value;
-    const endDate = document.getElementById('end-date').value;
-    const categoriesData = await this.api({ action: 'getDeptFlows', department: dept, startDate, endDate });
+    const targetDate = document.getElementById('target-date').value;
+    const categoriesData = await this.api({ action: 'getDeptFlows', department: dept, targetDate: targetDate });
     
     let html = '';
-    // 取得分類名稱並依名稱排序 (如 1_早班, 2_午班)
     let sortedCategories = Object.keys(categoriesData).sort();
     
     sortedCategories.forEach(catName => {
@@ -179,7 +207,7 @@ const app = {
                 <div id="${collapseId}" class="accordion-collapse collapse" data-bs-parent="#acc-${f.id}">
                   <div class="accordion-body p-0">
                     <div class="p-3 bg-light text-end">
-                      <button class="btn btn-sm btn-outline-primary fw-bold shadow-sm" onclick="app.openForm('new', '${f.id}', '${f.name}')"><i class="bi bi-plus-lg"></i> 建立新紀錄</button>
+                      <button class="btn btn-sm btn-outline-primary fw-bold shadow-sm" onclick="app.openForm('new', '${f.id}', '${f.name}')"><i class="bi bi-plus-lg"></i> 新增一筆紀錄</button>
                     </div>
                     <div class="list-group list-group-flush">${listHtml}</div>
                   </div>
@@ -189,7 +217,7 @@ const app = {
         }
       });
     });
-    document.getElementById('dept-accordion-container').innerHTML = html;
+    document.getElementById('dept-accordion-container').innerHTML = html || '<p class="text-muted mt-3">此單位尚未設定問卷。</p>';
   },
 
   async openForm(mode, flowId, flowName, recordId = null) {
@@ -200,7 +228,6 @@ const app = {
     document.getElementById('btn-delete-form').style.display = mode === 'edit' ? 'block' : 'none';
     
     this.questions = await this.api({ action: 'getQuestions', flowId: flowId });
-    
     let oldAnswers = {};
     if(mode === 'edit') oldAnswers = await this.api({ action: 'getRecord', recordId: recordId });
 
@@ -210,7 +237,6 @@ const app = {
     this.questions.forEach(q => {
       const val = oldAnswers[q.qId] || '';
       const reqMark = q.isRequired ? `<span class="text-danger ms-1">*</span>` : '';
-      
       let html = `<div class="card mb-4 shadow-sm border-0"><div class="card-body"><h5 class="fw-bold mb-3">${q.title} ${reqMark}</h5>`;
       
       if(q.type === '單選') {
@@ -228,7 +254,7 @@ const app = {
         html += `<input type="number" step="any" id="${q.qId}" class="form-control form-control-lg bg-light border-0 shadow-sm" value="${val}">`;
       } else if (q.type === '照片') {
         if(mode === 'edit' && val.startsWith('http')) {
-          html += `<div class="mb-2"><img src="${val}" class="img-fluid rounded shadow-sm" style="max-height:200px;"></div><small class="text-muted d-block mb-2">上傳新照片將覆蓋舊照片</small>`;
+          html += `<div class="mb-2"><img src="${val}" class="img-fluid rounded shadow-sm" style="max-height:200px;"></div><small class="text-muted d-block mb-2">上傳新照將覆蓋</small>`;
         }
         html += `<input type="file" accept="image/*" class="form-control" id="${q.qId}">`;
       }
@@ -299,34 +325,132 @@ const app = {
     this.goBack();
   },
 
-  // 後台維護渲染
-  async loadAdmin(menuItem, type) {
+  // ------------- 後台功能 (Web CRUD) -------------
+  async loadAdminFlows(menuItem) {
     this.setActiveMenu(menuItem);
-    this.switchView('view-admin', type === 'flows' ? '維護 FLOW' : '設計問卷');
+    this.switchView('view-admin-flows', '維護 FLOW');
     const data = await this.api({ action: 'getAdminData' });
     
     let html = '';
-    if (type === 'flows') {
-      html = `<h5 class="fw-bold mb-3">已建立的問卷表單 (Flows)</h5><div class="list-group shadow-sm">`;
-      data.flows.forEach(f => {
-        let badge = f.active ? `<span class="badge bg-success">啟用中</span>` : `<span class="badge bg-secondary">已停用</span>`;
-        html += `<div class="list-group-item d-flex justify-content-between align-items-center py-3">
-                   <div><div class="fw-bold fs-5">${f.name}</div><small class="text-muted">分類: ${f.category} ｜ 單位: ${f.dept}</small></div>
-                   ${badge}
-                 </div>`;
-      });
-      html += `</div>`;
-    } else {
-      html = `<h5 class="fw-bold mb-3">題目庫總覽 (Questions)</h5><div class="list-group shadow-sm">`;
-      data.questions.forEach(q => {
-        html += `<div class="list-group-item py-3">
-                   <div class="d-flex align-items-center mb-1"><span class="badge bg-primary me-2">${q.type}</span> <span class="fw-bold">${q.title}</span></div>
-                   <small class="text-muted">所屬 Flow ID: ${q.flowId}</small>
-                 </div>`;
-      });
-      html += `</div>`;
-    }
-    document.getElementById('admin-content-area').innerHTML = html;
+    data.flows.forEach(f => {
+      let badge = f.active ? `<span class="badge bg-success">啟用中</span>` : `<span class="badge bg-secondary">已停用</span>`;
+      html += `
+        <div class="card shadow-sm border-0 mb-3">
+          <div class="card-body d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-bold fs-5">${f.name} <small class="text-muted fs-6">(${f.id})</small></div>
+              <small class="text-muted">分類: ${f.category} ｜ 單位: ${f.dept} ｜ 排序: ${f.sort}</small>
+              <div class="mt-1">${badge}</div>
+            </div>
+            <div>
+              <button class="btn btn-sm btn-outline-primary" onclick='app.adminEditFlow(${JSON.stringify(f)})'><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger" onclick="app.adminDelFlow('${f.id}')"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+        </div>`;
+    });
+    document.getElementById('admin-flows-list').innerHTML = html;
+  },
+
+  adminEditFlow(flow = null) {
+    const isNew = !flow;
+    document.getElementById('adminModalTitle').innerText = isNew ? '新增 FLOW' : '修改 FLOW';
+    let id = isNew ? `FLOW_${new Date().getTime()}` : flow.id;
+    let name = isNew ? '' : flow.name;
+    let dept = isNew ? '' : flow.dept;
+    let category = isNew ? '' : flow.category;
+    let activeChecked = (!isNew && flow.active) || isNew ? 'checked' : '';
+
+    document.getElementById('adminModalBody').innerHTML = `
+      <input type="hidden" id="af-id" value="${id}">
+      <div class="mb-3"><label class="form-label fw-bold">表單名稱</label><input type="text" id="af-name" class="form-control" value="${name}"></div>
+      <div class="mb-3"><label class="form-label fw-bold">所屬單位</label><input type="text" id="af-dept" class="form-control" value="${dept}" placeholder="通用 或 特定單位"></div>
+      <div class="mb-3"><label class="form-label fw-bold">Flow 分類</label><input type="text" id="af-cat" class="form-control" value="${category}" placeholder="例如: 1_早班"></div>
+      <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="af-active" ${activeChecked}><label class="form-check-label">啟用此表單</label></div>
+    `;
+    document.getElementById('adminModalSaveBtn').onclick = async () => {
+      await this.api({ action: 'adminSaveFlow', data: {
+        id: document.getElementById('af-id').value, name: document.getElementById('af-name').value, sort: 0,
+        dept: document.getElementById('af-dept').value, category: document.getElementById('af-cat').value,
+        active: document.getElementById('af-active').checked
+      }});
+      bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide();
+      this.loadAdminFlows();
+    };
+    new bootstrap.Modal(document.getElementById('adminModal')).show();
+  },
+
+  async adminDelFlow(id) {
+    if(!confirm("確定要刪除嗎？")) return;
+    await this.api({ action: 'adminDeleteFlow', id: id });
+    this.loadAdminFlows();
+  },
+
+  async loadAdminQuestions(menuItem) {
+    this.setActiveMenu(menuItem);
+    this.switchView('view-admin-questions', '設計問卷題目');
+    const data = await this.api({ action: 'getAdminData' });
+    
+    let html = '';
+    data.questions.forEach(q => {
+      let reqBadge = q.req ? `<span class="badge bg-danger ms-2">必填</span>` : '';
+      html += `
+        <div class="card shadow-sm border-0 mb-2">
+          <div class="card-body d-flex justify-content-between align-items-center py-2">
+            <div>
+              <div><span class="badge bg-primary me-2">${q.type}</span> <span class="fw-bold">${q.title}</span> ${reqBadge}</div>
+              <small class="text-muted">Flow ID: ${q.flowId} | 選項: ${q.options || '無'}</small>
+            </div>
+            <div>
+              <button class="btn btn-sm btn-outline-primary" onclick='app.adminEditQuestion(${JSON.stringify(q)})'><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger" onclick="app.adminDelQuestion('${q.id}')"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+        </div>`;
+    });
+    document.getElementById('admin-questions-list').innerHTML = html;
+  },
+
+  adminEditQuestion(q = null) {
+    const isNew = !q;
+    document.getElementById('adminModalTitle').innerText = isNew ? '新增題目' : '修改題目';
+    let id = isNew ? `Q_${new Date().getTime()}` : q.id;
+    let flowId = isNew ? '' : q.flowId;
+    let title = isNew ? '' : q.title;
+    let type = isNew ? '單選' : q.type;
+    let opts = isNew ? '' : q.options;
+    let req = isNew ? false : q.req;
+
+    document.getElementById('adminModalBody').innerHTML = `
+      <input type="hidden" id="aq-id" value="${id}">
+      <div class="mb-2"><label class="form-label fw-bold">所屬 Flow ID</label><input type="text" id="aq-flow" class="form-control" value="${flowId}"></div>
+      <div class="mb-2"><label class="form-label fw-bold">題目名稱</label><input type="text" id="aq-title" class="form-control" value="${title}"></div>
+      <div class="mb-2"><label class="form-label fw-bold">題型</label>
+        <select id="aq-type" class="form-select">
+          <option ${type==='單選'?'selected':''}>單選</option><option ${type==='多選'?'selected':''}>多選</option>
+          <option ${type==='數字'?'selected':''}>數字</option><option ${type==='溫度'?'selected':''}>溫度</option>
+          <option ${type==='照片'?'selected':''}>照片</option>
+        </select>
+      </div>
+      <div class="mb-3"><label class="form-label fw-bold">選項 (用逗號分隔)</label><input type="text" id="aq-opt" class="form-control" value="${opts}"></div>
+      <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="aq-req" ${req?'checked':''}><label class="form-check-label fw-bold text-danger">必填</label></div>
+    `;
+    document.getElementById('adminModalSaveBtn').onclick = async () => {
+      await this.api({ action: 'adminSaveQuestion', data: {
+        id: document.getElementById('aq-id').value, flowId: document.getElementById('aq-flow').value,
+        title: document.getElementById('aq-title').value, type: document.getElementById('aq-type').value,
+        options: document.getElementById('aq-opt').value, req: document.getElementById('aq-req').checked
+      }});
+      bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide();
+      this.loadAdminQuestions();
+    };
+    new bootstrap.Modal(document.getElementById('adminModal')).show();
+  },
+
+  async adminDelQuestion(id) {
+    if(!confirm("確定刪除此題目嗎？")) return;
+    await this.api({ action: 'adminDeleteQuestion', id: id });
+    this.loadAdminQuestions();
   }
 };
 window.onload = () => app.init();
