@@ -9,7 +9,6 @@ const app = {
   charts: {},
 
   init() {
-    // 日期選擇器預設為今天
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('start-date').value = today;
     document.getElementById('end-date').value = today;
@@ -34,9 +33,15 @@ const app = {
 
   toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); },
 
-  switchView(viewId) {
+  // 切換畫面時一併更改大標題，並控制日期篩選器是否顯示
+  switchView(viewId, title = '') {
     document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
+    
+    if (title) document.getElementById('page-main-title').innerText = title;
+    
+    // 如果是進入「填寫問卷」畫面，隱藏上方的日期篩選區塊避免干擾
+    document.getElementById('date-filter-container').style.display = (viewId === 'view-form') ? 'none' : 'flex';
   },
 
   setActiveMenu(target) {
@@ -48,9 +53,9 @@ const app = {
     const empId = document.getElementById('login-emp-id').value;
     if(!empId) return alert("請輸入編號");
     this.user = await this.api({ action: 'login', empId });
-    document.getElementById('user-info').innerText = `${this.user.empName} (${this.user.empId})`;
+    document.getElementById('user-info').innerText = `${this.user.empName}`;
     
-    // 依據 GAS 回傳的 availableDepts 動態產生側邊選單
+    // 依據 GAS 回傳的單位陣列，動態渲染側邊欄單位
     let menuHtml = '';
     this.user.availableDepts.forEach(d => {
       menuHtml += `<li>
@@ -64,7 +69,6 @@ const app = {
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('main-system').style.display = 'block';
     
-    // 預設進入首頁總覽
     const homeBtn = document.querySelector('#sidebar ul li a');
     this.loadDashboard(homeBtn);
   },
@@ -76,7 +80,7 @@ const app = {
 
   async loadDashboard(menuItem = null) {
     if(menuItem) this.setActiveMenu(menuItem);
-    this.switchView('view-dashboard');
+    this.switchView('view-dashboard', '系統總覽');
     const startDate = document.getElementById('start-date').value;
     const endDate = document.getElementById('end-date').value;
     
@@ -88,15 +92,15 @@ const app = {
     document.getElementById('dash-exc-list').innerHTML = data.exceptionsList.length > 0 
       ? data.exceptionsList.map(e => `
           <li class="mb-3 border-bottom border-light pb-2">
-            <div class="fw-bold">${e.flowName}</div>
-            <small class="text-white-50"><i class="bi bi-person"></i> ${e.empName} ｜ <i class="bi bi-clock"></i> ${e.time}</small>
-            <div class="mt-1 bg-white text-danger px-2 py-1 rounded d-inline-block fw-bold">異常數值：${e.value}</div>
+            <div class="fw-bold fs-6 mb-1">${e.flowName}</div>
+            <div class="text-white-50 small mb-2"><i class="bi bi-person-fill"></i> ${e.empName} ｜ <i class="bi bi-clock"></i> ${e.time}</div>
+            <div class="bg-white text-danger px-2 py-1 rounded d-inline-block fw-bold shadow-sm">異常回報數值：${e.value}</div>
           </li>`).join('')
-      : '<li>目前無異常。</li>';
+      : '<li>目前區間無異常。</li>';
       
     document.getElementById('dash-inc-list').innerHTML = data.incompleteFlows.length > 0
-      ? data.incompleteFlows.map(f => `<li class="mb-2"><i class="bi bi-x-circle text-danger me-2"></i> ${f.name}</li>`).join('')
-      : '<li><i class="bi bi-check-circle text-success"></i> 指定區間內全數完成！</li>';
+      ? data.incompleteFlows.map(f => `<li class="mb-2 fs-6"><i class="bi bi-x-circle text-danger me-2"></i> ${f.name}</li>`).join('')
+      : '<li><i class="bi bi-check-circle text-success fs-5 me-2"></i> 區間內指定任務全數完成！</li>';
 
     this.loadDashboardCharts(startDate, endDate);
   },
@@ -134,8 +138,7 @@ const app = {
   async loadDeptFlows(dept, menuItem = null) {
     if(menuItem) this.setActiveMenu(menuItem);
     this.currentDept = dept;
-    document.getElementById('dept-title').innerText = `${dept} - 問卷清單`;
-    this.switchView('view-dept-flows');
+    this.switchView('view-dept-flows', `${dept} 問卷清單`);
     
     const startDate = document.getElementById('start-date').value;
     const endDate = document.getElementById('end-date').value;
@@ -173,8 +176,8 @@ const app = {
     if(modal) modal.hide();
     
     this.formMode = mode; 
-    this.switchView('view-form');
-    document.getElementById('form-title').innerText = `${this.currentFlow.name} ${mode==='view'?'(唯讀模式)':''}`;
+    let formModeText = mode === 'view' ? ' (唯讀模式)' : (mode === 'edit' ? ' (修改紀錄)' : '');
+    this.switchView('view-form', `${this.currentFlow.name}${formModeText}`);
     
     this.questions = await this.api({ action: 'getQuestions', flowId: this.currentFlow.id });
     
@@ -253,7 +256,6 @@ const app = {
         if (fileInput && fileInput.files.length > 0) {
           value = await this.fileToBase64(fileInput.files[0]);
         } else if (this.formMode === 'edit') {
-          // 修改模式下若無上傳新檔案，沿用原圖片DOM的值
           const existingImg = fileInput ? fileInput.parentElement.querySelector('img') : null;
           if (existingImg) value = existingImg.src;
         }
