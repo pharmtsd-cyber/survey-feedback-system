@@ -94,7 +94,22 @@
           <div id="dash-charts" class="row mt-2"></div>
         </div>
         
+<!-- 行事曆總覽 -->
         <div id="view-calendar" class="content-view">
+          <!-- ✅ 新增的篩選器區塊 -->
+          <div class="row mb-3 px-1">
+            <div class="col-md-3 col-6">
+              <select id="cal-filter-dept" class="form-select shadow-sm border-0" onchange="app.calendar.applyFilters()">
+                <option value="">所有單位</option>
+              </select>
+            </div>
+            <div class="col-md-3 col-6">
+              <select id="cal-filter-wf" class="form-select shadow-sm border-0" onchange="app.calendar.applyFilters()">
+                <option value="">所有任務</option>
+              </select>
+            </div>
+          </div>
+          
           <div class="card shadow-sm border-0 mb-4"><div class="card-body p-2 p-md-3" id="calendar-container"></div></div>
           <div id="calendar-details-container"></div>
         </div>
