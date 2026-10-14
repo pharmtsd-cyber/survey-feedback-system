@@ -98,7 +98,7 @@ app.calendar = {
         let badgeClass = ''; let jumpBtn = '';
         if (d.status === '未完成') {
           badgeClass = 'bg-secondary';
-          jumpBtn = `<button class="btn btn-sm btn-primary fw-bold ms-2 shadow-sm" onclick="app.department.startWorkflow('${d.wfId}', '${d.wfName}', '${d.flowIds}')">啟動任務</button>`;
+          jumpBtn = `<button class="btn btn-sm btn-primary fw-bold ms-2 shadow-sm" onclick="app.department.startWorkflowFromCalendar('${d.wfId}', '${dept}', '${dateStr}')">啟動任務</button>`;
         } else {
           badgeClass = d.status.includes('異常') ? 'bg-danger' : 'bg-success';
         }
