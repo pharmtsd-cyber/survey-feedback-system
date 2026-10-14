@@ -7,11 +7,13 @@ app.department = {
     const targetDate = document.getElementById('target-date').value;
     const cacheKey = `${dept}_${targetDate}`;
     let res;
-    if (app.cache.deptFlows && app.cache.deptFlows.key === cacheKey) {
-        res = app.cache.deptFlows.data;
+    
+// ✅ 修改1：對應新的物件快取結構
+    if (app.cache.deptFlows[cacheKey]) {
+        res = app.cache.deptFlows[cacheKey];
     } else {
         res = await app.api({ action: 'getDeptFlows', department: dept, targetDate: targetDate });
-        app.cache.deptFlows = { key: cacheKey, data: res };
+        app.cache.deptFlows[cacheKey] = res;
     }
     
     let groupedExcs = {};
@@ -142,7 +144,8 @@ app.department = {
   async deleteRecord() {
     if(!confirm("確定要刪除這筆紀錄嗎？刪除後無法還原。")) return;
     await app.api({ action: 'deleteRecord', recordId: app.currentFlow.recordId });
-    app.cache = {}; // 刪除後清除所有快取
+    // ✅ 修改2：刪除後正確重置物件快取
+    app.cache = { dashboard: {}, deptFlows: {}, calendar: {} }; 
     alert("紀錄已刪除！");
     this.goBack();
   },
@@ -188,7 +191,8 @@ app.department = {
     };
 
     const res = await app.api(payload);
-    app.cache = {}; // 存檔後強制清空快取確保資料最新
+    // ✅ 修改3：存檔後正確重置物件快取
+    app.cache = { dashboard: {}, deptFlows: {}, calendar: {} }; 
     if (res.exceptionTriggered) alert("儲存成功！注意：有異常數值，已通報處理。");
     else alert("儲存成功！");
     this.goBack();
