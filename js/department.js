@@ -42,7 +42,7 @@ app.department = {
             <span class="badge bg-light text-dark border">${wf.dept}</span><span class="badge bg-info text-dark border">${wf.category}</span>
             <span class="fw-bold ms-1 text-break">${wf.name}</span>
           </div>
-          <button class="btn btn-sm btn-primary fw-bold text-nowrap shadow-sm" onclick="app.department.startWorkflow('${wf.id}', '${wf.name}', '${wf.flowIds}')">啟動任務</button>
+          <button class="btn btn-sm btn-primary fw-bold text-nowrap shadow-sm" onclick="app.department.startWorkflow('${wf.id}')">啟動任務</button>
         </li>`).join('')
       : '<li class="p-2 text-success fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 本日指定任務全數完成！</li>';
 
@@ -89,7 +89,7 @@ app.department = {
               <div id="${collapseId}" class="accordion-collapse collapse" data-bs-parent="#acc-${wf.id}">
                 <div class="accordion-body p-0">
                   <div class="p-2 bg-light text-end border-bottom border-top">
-                    <button class="btn btn-sm btn-primary fw-bold shadow-sm px-3" onclick="app.department.startWorkflow('${wf.id}', '${wf.name}', '${wf.flowIds}')"><i class="bi bi-play-circle"></i> 進入任務</button>
+                    <button class="btn btn-sm btn-primary fw-bold shadow-sm px-3" onclick="app.department.startWorkflow('${wf.id}')"><i class="bi bi-play-circle"></i> 進入任務</button>
                   </div>
                   <div class="list-group list-group-flush">${listHtml}</div>
                 </div>
@@ -101,11 +101,74 @@ app.department = {
     document.getElementById('dept-accordion-container').innerHTML = html || '<p class="text-muted mt-3">此單位尚未設定任務流。</p>';
   },
 
-  startWorkflow(wfId, wfName, flowIdsStr) {
-    let ids = flowIdsStr.split(',').map(s=>s.trim()).filter(s=>s!=='');
-    if(ids.length === 0) return alert("此任務流尚未綁定任何表單！");
-    app.currentWorkflow = { id: wfId, name: wfName, flows: ids, currentIndex: 0 };
-    this.openForm('new', ids[0], '讀取中...', null, true);
+  // ✅ 新增：從行事曆點擊時，預先跳轉回該單位與該日期，再啟動任務
+  async startWorkflowFromCalendar(wfId, dept, dateStr) {
+    document.getElementById('target-date').value = dateStr;
+    await this.loadDeptFlows(dept);
+    this.startWorkflow(wfId);
+  },
+
+  // ✅ 智慧啟動任務：尋找斷點接續填寫
+  startWorkflow(wfId) {
+    const targetDate = document.getElementById('target-date').value;
+    const cacheKey = `${app.currentDept}_${targetDate}`;
+    const res = app.cache.deptFlows[cacheKey];
+    if(!res) return alert("資料尚未載入！");
+    
+    let targetWf = null;
+    for (let cat in res.categories) {
+        let found = res.categories[cat].find(w => w.id === wfId);
+        if (found) targetWf = found;
+    }
+    if (!targetWf) return alert("找不到任務流資料！");
+
+    // 計算斷點：尋找第一個還沒填寫紀錄的表單
+    let startIndex = 0;
+    for (let i = 0; i < targetWf.flows.length; i++) {
+        if (targetWf.flows[i].records && targetWf.flows[i].records.length > 0) {
+            startIndex = i + 1; 
+        } else {
+            break;
+        }
+    }
+
+    // 若全部完成，詢問是否修改最後一頁
+    if (startIndex >= targetWf.flows.length) {
+        if(confirm("此任務流本日已全數完成！是否要查看/修改最後一個表單？")) {
+            startIndex = targetWf.flows.length - 1;
+        } else {
+            return;
+        }
+    }
+
+    // 建立本地進度記憶體
+    app.currentWorkflow = { 
+        id: targetWf.id, 
+        name: targetWf.name, 
+        flows: JSON.parse(JSON.stringify(targetWf.flows)),
+        currentIndex: startIndex 
+    };
+
+    this.openWorkflowStep();
+  },
+
+  // ✅ 渲染當前任務步驟
+  openWorkflowStep() {
+    let wf = app.currentWorkflow;
+    let stepFlow = wf.flows[wf.currentIndex];
+    // 如果此步驟已有紀錄，代表是透過「上一頁」回來修改的
+    let isEdit = stepFlow.records && stepFlow.records.length > 0;
+    let recId = isEdit ? stepFlow.records[0].recordId : null;
+    
+    this.openForm(isEdit ? 'edit' : 'new', stepFlow.id, stepFlow.name, recId, true);
+  },
+
+  // ✅ 回上一頁邏輯
+  prevWorkflowStep() {
+    if (app.currentWorkflow && app.currentWorkflow.currentIndex > 0) {
+        app.currentWorkflow.currentIndex--;
+        this.openWorkflowStep();
+    }
   },
 
   async openForm(mode, flowId, flowName, recordId = null, isWorkflow = false) {
@@ -113,19 +176,25 @@ app.department = {
     app.formMode = mode;
     app.currentFlow = { id: flowId, name: flowName, recordId: recordId };
     
-    // 預先切換畫面顯示讀取中
     app.switchView('view-form', `${app.currentWorkflow ? app.currentWorkflow.name + ' - ' : ''}資料讀取中...`);
-    document.getElementById('btn-delete-form').style.display = mode === 'edit' ? 'block' : 'none';
     
-    const res = await app.api({ action: 'getQuestions', flowId: flowId });
+    // ✅ 導入題目快取，切換分頁不再轉圈
+    let res;
+    if (app.cache.questions[flowId]) {
+        res = app.cache.questions[flowId];
+    } else {
+        res = await app.api({ action: 'getQuestions', flowId: flowId });
+        app.cache.questions[flowId] = res;
+    }
+    
     app.questions = res.questions;
     app.currentFlow.name = res.flowName;
 
-    // 更新正式標題與進度
     let progressText = '';
     if(app.currentWorkflow) progressText = ` <span class="badge bg-info text-dark fs-6 ms-2 shadow-sm border border-light">步驟 ${app.currentWorkflow.currentIndex + 1} / ${app.currentWorkflow.flows.length}</span>`;
     document.getElementById('page-main-title').innerHTML = `${app.currentWorkflow ? app.currentWorkflow.name + ' - ' : ''}${res.flowName} ${mode === 'edit' ? '(修改)' : ''} ${progressText}`;
     
+    // 編輯模式的歷史資料因具備時效性，仍須透過 API 抓取
     let oldAnswers = {};
     if(mode === 'edit') oldAnswers = await app.api({ action: 'getRecord', recordId: recordId });
 
@@ -165,6 +234,23 @@ app.department = {
       html += `</div></div>`;
       container.innerHTML += html;
     });
+
+    // ✅ 動態產生控制按鈕
+    let btnHtml = '';
+    if (isWorkflow && app.currentWorkflow.currentIndex > 0) {
+        btnHtml += `<button class="btn btn-outline-secondary flex-fill fw-bold shadow-sm py-2" onclick="app.department.prevWorkflowStep()"><i class="bi bi-arrow-left"></i> 上一頁</button>`;
+    } else {
+        btnHtml += `<button class="btn btn-secondary flex-fill fw-bold shadow-sm py-2" onclick="app.department.goBack()"><i class="bi bi-box-arrow-left"></i> 返回清單</button>`;
+    }
+    
+    if (mode === 'edit') {
+        btnHtml += `<button class="btn btn-danger flex-fill fw-bold shadow-sm py-2" onclick="app.department.deleteRecord()"><i class="bi bi-trash"></i> 刪除</button>`;
+    }
+    
+    let submitText = (isWorkflow && app.currentWorkflow.currentIndex < app.currentWorkflow.flows.length - 1) ? "儲存並下一步 <i class='bi bi-arrow-right'></i>" : "<i class='bi bi-check-lg'></i> 確認儲存";
+    btnHtml += `<button class="btn btn-primary flex-fill fw-bold shadow-sm py-2" onclick="app.department.submitForm()">${submitText}</button>`;
+    
+    document.getElementById('form-actions').innerHTML = btnHtml;
   },
 
   goBack() { 
@@ -175,9 +261,17 @@ app.department = {
   async deleteRecord() {
     if(!confirm("確定要刪除這筆紀錄嗎？刪除後無法還原。")) return;
     await app.api({ action: 'deleteRecord', recordId: app.currentFlow.recordId });
-    app.cache = { dashboard: {}, deptFlows: {}, calendar: {} };
+    // 清除整體快取以重新抓取總覽狀態
+    app.cache.dashboard = {}; app.cache.deptFlows = {}; app.cache.calendar = {};
     alert("紀錄已刪除！");
-    this.goBack();
+    
+    if(app.currentWorkflow) {
+        // 如果在任務流中刪除，將本頁清空重整為 new
+        app.currentWorkflow.flows[app.currentWorkflow.currentIndex].records = [];
+        this.openWorkflowStep();
+    } else {
+        this.goBack();
+    }
   },
 
   fileToBase64(file) {
@@ -217,22 +311,28 @@ app.department = {
 
     const payload = { action: 'submitForm', empId: app.user.empId, flowId: app.currentFlow.id, answers: answers, recordId: app.formMode === 'edit' ? app.currentFlow.recordId : null };
     const res = await app.api(payload);
-    app.cache = { dashboard: {}, deptFlows: {}, calendar: {} }; 
+    
+    // 送出成功，清除首頁/月曆等全域快取
+    app.cache.dashboard = {}; app.cache.deptFlows = {}; app.cache.calendar = {};
 
-    if (app.currentWorkflow && app.formMode === 'new') {
-      if (res.exceptionTriggered) alert("本步驟儲存成功！注意：有異常數值，已通報處理。");
-      app.currentWorkflow.currentIndex++;
-      if (app.currentWorkflow.currentIndex < app.currentWorkflow.flows.length) {
-        let nextFlowId = app.currentWorkflow.flows[app.currentWorkflow.currentIndex];
-        this.openForm('new', nextFlowId, '讀取中...', null, true);
-      } else {
-        alert("✅ 任務流全數完成！");
-        this.goBack();
-      }
+    if (app.currentWorkflow) {
+        // 每送出一步即存檔，若中斷離開，下次點「啟動任務」就會自動找到中斷點
+        // 將 recordId 存入本地記憶體，確保按「上一頁」時能以編輯模式開啟
+        app.currentWorkflow.flows[app.currentWorkflow.currentIndex].records = [{ recordId: res.recordId }];
+        
+        if (res.exceptionTriggered) alert("本步驟儲存成功！注意：有異常數值，已通報處理。");
+        
+        app.currentWorkflow.currentIndex++;
+        if (app.currentWorkflow.currentIndex < app.currentWorkflow.flows.length) {
+            this.openWorkflowStep(); // 繼續前往下一關
+        } else {
+            alert("✅ 任務流全數完成！");
+            this.goBack();
+        }
     } else {
-      if (res.exceptionTriggered) alert("儲存成功！注意：有異常數值，已通報處理。");
-      else alert("儲存成功！");
-      this.goBack();
+        if (res.exceptionTriggered) alert("儲存成功！注意：有異常數值，已通報處理。");
+        else alert("儲存成功！");
+        this.goBack();
     }
   }
 };
