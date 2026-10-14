@@ -1,17 +1,13 @@
-const GAS_API = "https://script.google.com/macros/s/AKfycbzB4n24LjIVF316LDnGTkxFDe7byn17vgrpHU_lQEeZww8iR8K7qLDCj4e2NOdm_ulCBw/exec";
+const GAS_API = "請貼上你的GAS網址"; 
 
 window.app = {
   user: null, currentDept: '', currentFlow: null, formMode: 'new', questions: [],
-  
+  cache: { dashboard: null, deptFlows: null, calendar: null }, // ✅ 快取機制
+
   init() {
-    // 預設為前一個月的1號 到 台灣時間的今天
     const twTime = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
-    const tY = twTime.getFullYear();
-    const tM = twTime.getMonth(); 
-    const tD = twTime.getDate();
+    const tY = twTime.getFullYear(); const tM = twTime.getMonth(); const tD = twTime.getDate();
     const todayStr = `${tY}-${String(tM + 1).padStart(2, '0')}-${String(tD).padStart(2, '0')}`;
-    
-    // 上個月 1 號 (若是一月，會自動變成去年十二月)
     const lastMonth = new Date(tY, tM - 1, 1);
     const startStr = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}-01`;
 
@@ -37,6 +33,12 @@ window.app = {
     }
   },
 
+  // ✅ 手動強制更新 (清除快取)
+  forceRefresh() {
+    this.cache = { dashboard: null, deptFlows: null, calendar: null };
+    this.refreshCurrentPage();
+  },
+
   toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); },
 
   switchView(viewId, title = '') {
@@ -48,14 +50,11 @@ window.app = {
     const singleCtrl = document.getElementById('date-single-container');
     
     if(viewId === 'view-dashboard' || viewId === 'view-calendar') {
-      rangeCtrl.classList.remove('d-none');
-      singleCtrl.classList.add('d-none');
+      rangeCtrl.classList.remove('d-none'); singleCtrl.classList.add('d-none');
     } else if (viewId === 'view-dept-flows') {
-      rangeCtrl.classList.add('d-none');
-      singleCtrl.classList.remove('d-none');
+      rangeCtrl.classList.add('d-none'); singleCtrl.classList.remove('d-none');
     } else {
-      rangeCtrl.classList.add('d-none');
-      singleCtrl.classList.add('d-none');
+      rangeCtrl.classList.add('d-none'); singleCtrl.classList.add('d-none');
     }
   },
 
@@ -67,7 +66,6 @@ window.app = {
   async login(mode) {
     const empId = document.getElementById('login-emp-id').value;
     if(!empId) return alert("請輸入員工編號");
-    
     document.body.className = mode === 'mobile' ? 'mobile-mode' : 'desktop-mode';
     this.user = await this.api({ action: 'login', empId });
     document.getElementById('user-info').innerText = `${this.user.empName}`;
