@@ -7,21 +7,41 @@ app.department = {
     const targetDate = document.getElementById('target-date').value;
     const res = await app.api({ action: 'getDeptFlows', department: dept, targetDate: targetDate });
     
-    // 專屬未完成卡片 (可跳轉)
-    let incHtml = '';
-    if(res.incompleteList && res.incompleteList.length > 0) {
-      res.incompleteList.forEach(f => {
-        incHtml += `<li class="mb-2 p-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center">
-                      <span class="fw-bold"><i class="bi bi-x-circle text-danger me-2"></i> <span class="badge bg-light text-dark border me-1">${f.dept}</span> ${f.name}</span>
-                      <button class="btn btn-sm btn-primary fw-bold" onclick="app.department.openForm('new', '${f.id}', '${f.name}')">前往填寫</button>
-                    </li>`;
+    // 渲染單位異常卡片
+    document.getElementById('dept-exc-count').innerText = res.exceptionCount;
+    let excHtml = '';
+    if(res.exceptionsList.length > 0) {
+      res.exceptionsList.forEach((e, i) => {
+        let colId = `dept-exc-col-${i}`;
+        excHtml += `
+          <div class="accordion-item bg-transparent border-bottom border-light">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed bg-transparent text-white p-2" type="button" data-bs-toggle="collapse" data-bs-target="#${colId}">
+                <strong class="fs-6 me-2">${e.flowName}</strong>
+              </button>
+            </h2>
+            <div id="${colId}" class="accordion-collapse collapse" data-bs-parent="#dept-acc-exceptions">
+              <div class="accordion-body p-2 pt-0 text-white-50 small">
+                <div><i class="bi bi-person"></i> ${e.empName} ｜ <i class="bi bi-clock"></i> ${e.time}</div>
+                <div class="mt-2 bg-white text-danger px-2 py-1 rounded fw-bold shadow-sm d-inline-block">${e.qTitle} : ${e.value}</div>
+                <div class="mt-2 text-end">
+                  <button class="btn btn-sm btn-light text-primary fw-bold shadow-sm" onclick="app.department.openForm('edit', '${e.flowId}', '${e.flowName}', '${e.recordId}')">前往回覆/修改 <i class="bi bi-arrow-right"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>`;
       });
     } else {
-      incHtml = '<li class="p-2 text-success fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 本日指定任務全數完成！</li>';
+      excHtml = '<div class="p-2 text-white">目前無異常。</div>';
     }
-    document.getElementById('dept-inc-list').innerHTML = incHtml;
+    document.getElementById('dept-acc-exceptions').innerHTML = excHtml;
 
-    // 手風琴分類清單
+    // 渲染單位未完成清單
+    document.getElementById('dept-inc-list').innerHTML = res.incompleteList.length > 0
+      ? res.incompleteList.map(f => `<li class="mb-2 fs-6 px-2 d-flex justify-content-between align-items-center"><div class="fw-bold"><i class="bi bi-x-circle text-danger me-2"></i> ${f.name}</div><button class="btn btn-sm btn-light text-dark fw-bold shadow-sm" onclick="app.department.openForm('new', '${f.id}', '${f.name}')">前往填寫</button></li>`).join('')
+      : '<li class="px-2"><i class="bi bi-check-circle text-success fs-5 me-2"></i> 本日全數完成！</li>';
+
+    // 渲染手風琴分類清單
     let html = '';
     let sortedCategories = Object.keys(res.categories).sort();
     
