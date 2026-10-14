@@ -7,13 +7,15 @@ app.dashboard = {
     const startDate = document.getElementById('start-date').value;
     const endDate = document.getElementById('end-date').value;
     
-    const cacheKey = `${startDate}_${endDate}_${app.user.dept}`;
+    // ✅ 修改1：快取鍵值改為全域 (all)
+    const cacheKey = `${startDate}_${endDate}_all`;
     let data;
-    if (app.cache.dashboard && app.cache.dashboard.key === cacheKey) {
-        data = app.cache.dashboard.data;
+    if (app.cache.dashboard[cacheKey]) {
+        data = app.cache.dashboard[cacheKey];
     } else {
-        data = await app.api({ action: 'getDashboard', startDate, endDate, department: app.user.dept });
-        app.cache.dashboard = { key: cacheKey, data };
+        // ✅ 修改2：department 改為傳送空字串
+        data = await app.api({ action: 'getDashboard', startDate, endDate, department: '' });
+        app.cache.dashboard[cacheKey] = data;
     }
     
     // ✅ 異常卡片群組化，改為與未完成相同外觀，但加上跳轉按鈕
@@ -45,7 +47,16 @@ app.dashboard = {
   },
 
   async loadDashboardCharts(startDate, endDate) {
-    const data = await app.api({ action: 'getTempHistoryByDate', startDate, endDate, department: app.user.dept });
+    // ✅ 修改3：為圖表 API 獨立加上快取機制，避免切換回來一直轉圈圈
+    const cacheKey = `${startDate}_${endDate}_all_temp`;
+    let data;
+    if (app.cache.dashboard[cacheKey]) {
+        data = app.cache.dashboard[cacheKey];
+    } else {
+        data = await app.api({ action: 'getTempHistoryByDate', startDate, endDate, department: '' });
+        app.cache.dashboard[cacheKey] = data;
+    }
+
     const container = document.getElementById('dash-charts');
     for(let qId in this.charts) { this.charts[qId].destroy(); }
     this.charts = {};
