@@ -7,50 +7,38 @@ app.dashboard = {
     const startDate = document.getElementById('start-date').value;
     const endDate = document.getElementById('end-date').value;
     
-    const data = await app.api({ action: 'getDashboard', startDate, endDate, department: app.user.dept });
-    document.getElementById('dash-exc-count').innerText = data.exceptionCount;
-    
-    // 異常手風琴卡片
-    let excHtml = '';
-    if(data.exceptionsList.length > 0) {
-      data.exceptionsList.forEach((e, i) => {
-        let colId = `exc-col-${i}`;
-        excHtml += `
-          <div class="accordion-item bg-transparent border-bottom border-light">
-            <h2 class="accordion-header">
-              <button class="accordion-button collapsed bg-transparent text-white p-2 d-flex flex-wrap gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#${colId}">
-                <strong class="fs-6 mb-0">${e.flowName}</strong>
-                <div class="ms-auto d-flex gap-1">
-                  <span class="badge bg-light text-danger shadow-sm">${e.flowDept}</span>
-                  <span class="badge bg-light text-primary shadow-sm">${e.flowCategory}</span>
-                </div>
-              </button>
-            </h2>
-            <div id="${colId}" class="accordion-collapse collapse" data-bs-parent="#acc-exceptions">
-              <div class="accordion-body p-2 pt-0 text-white-50 small">
-                <div class="mt-2"><i class="bi bi-person"></i> ${e.empName} ｜ <i class="bi bi-clock"></i> ${e.time}</div>
-                <div class="mt-2 bg-white text-danger px-2 py-1 rounded fw-bold shadow-sm d-inline-block">${e.qTitle} : ${e.value}</div>
-                <div class="mt-2 text-end">
-                  <button class="btn btn-sm btn-light text-primary fw-bold shadow-sm" onclick="app.department.openForm('edit', '${e.flowId}', '${e.flowName}', '${e.recordId}')">前往回覆/修改 <i class="bi bi-arrow-right"></i></button>
-                </div>
-              </div>
-            </div>
-          </div>`;
-      });
+    const cacheKey = `${startDate}_${endDate}_${app.user.dept}`;
+    let data;
+    if (app.cache.dashboard && app.cache.dashboard.key === cacheKey) {
+        data = app.cache.dashboard.data;
     } else {
-      excHtml = '<div class="p-2 text-white">目前區間無異常。</div>';
+        data = await app.api({ action: 'getDashboard', startDate, endDate, department: app.user.dept });
+        app.cache.dashboard = { key: cacheKey, data };
     }
-    document.getElementById('acc-exceptions').innerHTML = excHtml;
+    
+    // ✅ 異常卡片群組化，改為與未完成相同外觀，但加上跳轉按鈕
+    let groupedExcs = {};
+    data.exceptionsList.forEach(e => {
+        if(!groupedExcs[e.recordId]) groupedExcs[e.recordId] = { ...e, anomalies: [] };
+        groupedExcs[e.recordId].anomalies.push(`${e.qTitle}: ${e.value}`);
+    });
+    const uniqueExcs = Object.values(groupedExcs);
+    
+    document.getElementById('dash-exc-count').innerText = data.exceptionCount;
+    document.getElementById('dash-exc-list').innerHTML = uniqueExcs.length > 0 
+      ? uniqueExcs.map(e => `
+          <li class="mb-2 p-2 bg-white rounded shadow-sm border-start border-danger border-4 d-flex justify-content-between align-items-center text-dark">
+            <div>
+              <span class="badge bg-light text-dark border me-1">${e.flowDept}</span><span class="badge bg-info text-dark border me-1">${e.flowCategory}</span><strong class="fs-6">${e.flowName}</strong>
+              <div class="text-muted small mt-1"><i class="bi bi-person"></i> ${e.empName} | <i class="bi bi-clock"></i> ${e.time}</div>
+              <div class="text-danger small mt-1 fw-bold">${e.anomalies.join(' , ')}</div>
+            </div>
+            <button class="btn btn-sm btn-outline-danger fw-bold text-nowrap ms-2 shadow-sm" onclick="app.department.openForm('edit', '${e.flowId}', '${e.flowName}', '${e.recordId}')">處理異常</button>
+          </li>`).join('')
+      : '<li class="p-2 text-white fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 目前區間無異常！</li>';
       
-    // 未完成清單 (顯示單位與分類)
     document.getElementById('dash-inc-list').innerHTML = data.incompleteFlows.length > 0
-      ? data.incompleteFlows.map(f => `
-        <li class="mb-2 fs-6 px-2 d-flex flex-wrap align-items-center gap-1">
-          <i class="bi bi-x-circle text-danger me-1"></i>
-          <span class="badge bg-light text-dark border">${f.dept}</span>
-          <span class="badge bg-info text-dark border">${f.category}</span>
-          <span class="fw-bold ms-1 text-break">${f.name}</span>
-        </li>`).join('')
+      ? data.incompleteFlows.map(f => `<li class="mb-2 fs-6 px-2 d-flex align-items-start"><i class="bi bi-x-circle text-danger me-2 mt-1"></i> <div><span class="badge bg-light text-dark border me-1">${f.dept}</span> ${f.name}</div></li>`).join('')
       : '<li class="px-2"><i class="bi bi-check-circle text-success fs-5 me-2"></i> 區間內全數完成！</li>';
 
     this.loadDashboardCharts(startDate, endDate);
@@ -68,9 +56,7 @@ app.dashboard = {
     }
 
     let html = '';
-    for(let qId in data) {
-      html += `<div class="col-md-6 col-12 mb-4"><div class="card shadow-sm border-0"><div class="card-body"><canvas id="dash-chart-${qId}"></canvas></div></div></div>`;
-    }
+    for(let qId in data) html += `<div class="col-md-6 col-12 mb-4"><div class="card shadow-sm border-0"><div class="card-body"><canvas id="dash-chart-${qId}"></canvas></div></div></div>`;
     container.innerHTML = html; 
 
     setTimeout(() => {
