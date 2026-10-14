@@ -2,7 +2,6 @@ const GAS_API = "https://script.google.com/macros/s/AKfycbzB4n24LjIVF316LDnGTkxF
 
 window.app = {
   user: null, currentDept: '', currentFlow: null, formMode: 'new', questions: [],
-  // ✅ 修改1：將快取改為物件，藉此儲存多個分頁與日期的狀態
   cache: { dashboard: {}, deptFlows: {}, calendar: {} },
 
   init() {
@@ -34,13 +33,19 @@ window.app = {
     }
   },
 
-// ✅ 修改2：重置快取時符合新結構
   forceRefresh() {
     this.cache = { dashboard: {}, deptFlows: {}, calendar: {} };
     this.refreshCurrentPage();
   },
 
-  toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); },
+  toggleSidebar() { 
+    const sidebar = document.getElementById('sidebar');
+    if (document.body.classList.contains('mobile-mode') || window.innerWidth <= 768) {
+      sidebar.classList.toggle('open');
+    } else {
+      sidebar.classList.toggle('collapsed'); 
+    }
+  },
 
   switchView(viewId, title = '') {
     document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
@@ -62,6 +67,29 @@ window.app = {
   setActiveMenu(target) {
     document.querySelectorAll('#sidebar ul li').forEach(li => li.classList.remove('active'));
     if(target) target.closest('li').classList.add('active');
+    
+    if (document.body.classList.contains('mobile-mode') || window.innerWidth <= 768) {
+      document.getElementById('sidebar').classList.remove('open');
+    }
+  },
+
+  logout() {
+    if(!confirm("確定要登出嗎？")) return;
+    
+    // 清空使用者資料與快取
+    this.user = null;
+    this.currentDept = '';
+    this.cache = { dashboard: {}, deptFlows: {}, calendar: {} };
+    document.getElementById('login-emp-id').value = '';
+    
+    // 切換畫面
+    document.getElementById('main-system').style.display = 'none';
+    document.getElementById('login-page').style.display = 'block';
+    
+    // 重置 body 模式並收合手機側邊欄
+    document.body.className = 'desktop-mode';
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar').classList.remove('collapsed');
   },
 
   async login(mode) {
