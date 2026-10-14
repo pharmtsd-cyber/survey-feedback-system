@@ -7,18 +7,15 @@ app.dashboard = {
     const startDate = document.getElementById('start-date').value;
     const endDate = document.getElementById('end-date').value;
     
-    // ✅ 修改1：快取鍵值改為全域 (all)
     const cacheKey = `${startDate}_${endDate}_all`;
     let data;
     if (app.cache.dashboard[cacheKey]) {
         data = app.cache.dashboard[cacheKey];
     } else {
-        // ✅ 修改2：department 改為傳送空字串
         data = await app.api({ action: 'getDashboard', startDate, endDate, department: '' });
         app.cache.dashboard[cacheKey] = data;
     }
     
-    // ✅ 異常卡片群組化，改為與未完成相同外觀，但加上跳轉按鈕
     let groupedExcs = {};
     data.exceptionsList.forEach(e => {
         if(!groupedExcs[e.recordId]) groupedExcs[e.recordId] = { ...e, anomalies: [] };
@@ -31,7 +28,7 @@ app.dashboard = {
       ? uniqueExcs.map(e => `
           <li class="mb-2 p-2 bg-white rounded shadow-sm border-start border-danger border-4 d-flex justify-content-between align-items-center text-dark">
             <div>
-              <span class="badge bg-light text-dark border me-1">${e.flowDept}</span><span class="badge bg-info text-dark border me-1">${e.flowCategory}</span><strong class="fs-6">${e.flowName}</strong>
+              <span class="badge bg-light text-dark border me-1">${e.flowDept}</span><span class="badge bg-info text-dark border me-1">例外紀錄</span><strong class="fs-6">${e.flowName}</strong>
               <div class="text-muted small mt-1"><i class="bi bi-person"></i> ${e.empName} | <i class="bi bi-clock"></i> ${e.time}</div>
               <div class="text-danger small mt-1 fw-bold">${e.anomalies.join(' , ')}</div>
             </div>
@@ -39,23 +36,22 @@ app.dashboard = {
           </li>`).join('')
       : '<li class="p-2 text-white fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 目前區間無異常！</li>';
       
-    document.getElementById('dash-inc-list').innerHTML = data.incompleteFlows.length > 0
-      ? data.incompleteFlows.map(f => `
+    document.getElementById('dash-inc-list').innerHTML = data.incompleteWorkflows.length > 0
+      ? data.incompleteWorkflows.map(wf => `
         <li class="mb-2 p-2 bg-white rounded shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 border-start border-warning border-4">
           <div class="d-flex flex-wrap align-items-center gap-1">
             <i class="bi bi-x-circle text-danger me-1"></i>
-            <span class="badge bg-light text-dark border">${f.dept}</span><span class="badge bg-info text-dark border">${f.category}</span>
-            <span class="fw-bold ms-1 text-break">${f.name}</span>
+            <span class="badge bg-light text-dark border">${wf.dept}</span><span class="badge bg-info text-dark border">${wf.category}</span>
+            <span class="fw-bold ms-1 text-break">${wf.name}</span>
           </div>
-          <button class="btn btn-sm btn-primary fw-bold text-nowrap shadow-sm" onclick="app.department.openForm('new', '${f.id}', '${f.name}')">前往填寫</button>
+          <button class="btn btn-sm btn-primary fw-bold text-nowrap shadow-sm" onclick="app.department.startWorkflow('${wf.id}', '${wf.name}', '${wf.flowIds}')">啟動任務</button>
         </li>`).join('')
-      : '<li class="p-2 text-success fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 區間內全數完成！</li>';
+      : '<li class="p-2 text-success fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 區間內全數任務完成！</li>';
 
     this.loadDashboardCharts(startDate, endDate);
   },
 
   async loadDashboardCharts(startDate, endDate) {
-    // ✅ 修改3：為圖表 API 獨立加上快取機制，避免切換回來一直轉圈圈
     const cacheKey = `${startDate}_${endDate}_all_temp`;
     let data;
     if (app.cache.dashboard[cacheKey]) {
