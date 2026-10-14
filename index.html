@@ -21,7 +21,7 @@
         <div class="card shadow border-0">
           <div class="card-body p-5">
             <div class="text-center mb-4 text-primary"><i class="bi bi-ui-checks-grid" style="font-size: 3rem;"></i></div>
-            <h3 class="text-center mb-4 fw-bold text-dark">問卷回饋系統</h3>
+            <h3 class="text-center mb-4 fw-bold text-dark">問卷回饋系統登入</h3>
             <input type="text" id="login-emp-id" class="form-control form-control-lg mb-4 text-center fw-bold" placeholder="請輸入員工編號">
             <div class="d-grid gap-3">
               <button class="btn btn-outline-primary btn-lg fw-bold" onclick="app.login('desktop')"><i class="bi bi-pc-display me-2"></i>桌機版登入</button>
@@ -49,7 +49,12 @@
           <li><a href="#" onclick="app.loadCalendar(this)"><i class="bi bi-calendar-check"></i> <span class="sidebar-text">行事曆總覽</span></a></li>
           
           <li class="nav-header mt-3 px-3 text-secondary fw-bold sidebar-text small"><i class="bi bi-card-checklist me-1"></i>問卷類型 (各單位)</li>
+          <!-- 單位清單容器 -->
           <div id="dept-menu-container"></div>
+          
+          <li class="nav-header mt-3 px-3 text-secondary fw-bold sidebar-text small"><i class="bi bi-tools me-1"></i>後台維護</li>
+          <li><a href="#" onclick="app.loadAdminFlows(this)"><i class="bi bi-diagram-3"></i> <span class="sidebar-text">維護 FLOW</span></a></li>
+          <li><a href="#" onclick="app.loadAdminQuestions(this)"><i class="bi bi-ui-checks"></i> <span class="sidebar-text">設計問卷題目</span></a></li>
         </ul>
       </nav>
 
@@ -59,16 +64,16 @@
         <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3 bg-white p-3 rounded shadow-sm border-0">
           <h4 id="page-main-title" class="fw-bold mb-0 text-dark">系統總覽</h4>
           
-          <!-- 區間篩選 (總覽與行事曆使用) -->
-          <div class="d-flex align-items-center gap-2 bg-light px-3 py-2 rounded border" id="date-range-container">
+          <!-- ✅ 區間篩選 (只在總覽與行事曆顯示) -->
+          <div class="d-flex align-items-center gap-2 bg-light px-3 py-2 rounded border d-none" id="date-range-container">
             <input type="date" id="start-date" class="form-control form-control-sm border-0 bg-transparent fw-bold text-primary" onchange="app.refreshCurrentPage()">
             <span class="text-muted fw-bold">~</span>
             <input type="date" id="end-date" class="form-control form-control-sm border-0 bg-transparent fw-bold text-primary" onchange="app.refreshCurrentPage()">
           </div>
           
-          <!-- 單日篩選 (單位清單使用) -->
-          <div class="d-flex align-items-center gap-2 bg-light px-3 py-2 rounded border" id="date-single-container" style="display:none;">
-            <label class="fw-bold text-secondary mb-0">日期：</label>
+          <!-- ✅ 單日篩選 (只在單位清單顯示) -->
+          <div class="d-flex align-items-center gap-2 bg-light px-3 py-2 rounded border d-none" id="date-single-container">
+            <label class="fw-bold text-secondary mb-0">單日：</label>
             <input type="date" id="target-date" class="form-control form-control-sm border-0 bg-transparent fw-bold text-primary" onchange="app.refreshCurrentPage()">
           </div>
         </div>
@@ -79,9 +84,7 @@
             <div class="col-md-6 mb-3">
               <div class="card bg-danger text-white shadow-sm h-100 border-0">
                 <div class="card-header border-0 fs-5"><i class="bi bi-exclamation-triangle"></i> 異常待處理 <span class="badge bg-light text-danger float-end fs-6 rounded-pill" id="dash-exc-count">0</span></div>
-                <div class="card-body p-2">
-                  <div class="accordion accordion-flush" id="acc-exceptions"></div>
-                </div>
+                <div class="card-body p-2"><div class="accordion accordion-flush" id="acc-exceptions"></div></div>
               </div>
             </div>
             <div class="col-md-6 mb-3">
@@ -100,11 +103,10 @@
           <div class="card shadow-sm border-0"><div class="card-body p-2 p-md-3" id="calendar-container"></div></div>
         </div>
 
-        <!-- 單位問卷清單 -->
+        <!-- 單位問卷清單 (手風琴) -->
         <div id="view-dept-flows" class="content-view">
-          <!-- 該單位未完成清單卡片 -->
           <div class="card bg-warning text-dark shadow-sm mb-4 border-0">
-            <div class="card-header border-0 fw-bold"><i class="bi bi-exclamation-circle"></i> 本日未完成清單</div>
+            <div class="card-header border-0 fw-bold fs-5"><i class="bi bi-exclamation-circle"></i> 本日未完成清單</div>
             <div class="card-body p-2"><ul id="dept-inc-list" class="list-unstyled mb-0"></ul></div>
           </div>
           <div id="dept-accordion-container"></div>
@@ -120,6 +122,31 @@
           </div>
         </div>
 
+        <!-- 後台維護 FLOW -->
+        <div id="view-admin-flows" class="content-view">
+          <button class="btn btn-primary mb-3 shadow-sm fw-bold" onclick="app.adminEditFlow(null)"><i class="bi bi-plus-lg"></i> 新增 FLOW</button>
+          <div id="admin-flows-list"></div>
+        </div>
+
+        <!-- 後台維護 題目 -->
+        <div id="view-admin-questions" class="content-view">
+          <button class="btn btn-primary mb-3 shadow-sm fw-bold" onclick="app.adminEditQuestion(null)"><i class="bi bi-plus-lg"></i> 新增題目</button>
+          <div id="admin-questions-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Modal (共用表單) -->
+  <div class="modal fade" id="adminModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content shadow border-0">
+        <div class="modal-header bg-light"><h5 class="modal-title fw-bold" id="adminModalTitle"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body" id="adminModalBody"></div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-primary fw-bold" id="adminModalSaveBtn">儲存</button>
+        </div>
       </div>
     </div>
   </div>
