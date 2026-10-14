@@ -4,14 +4,14 @@ window.app = {
   user: null, currentDept: '', currentFlow: null, formMode: 'new', questions: [],
   
   init() {
-    // 精準取得台灣時間的今天，與上個月的第一天
+    // 預設為前一個月的1號 到 台灣時間的今天
     const twTime = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
     const tY = twTime.getFullYear();
     const tM = twTime.getMonth(); 
     const tD = twTime.getDate();
     const todayStr = `${tY}-${String(tM + 1).padStart(2, '0')}-${String(tD).padStart(2, '0')}`;
     
-    // 上個月 1 號
+    // 上個月 1 號 (若是一月，會自動變成去年十二月)
     const lastMonth = new Date(tY, tM - 1, 1);
     const startStr = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}-01`;
 
@@ -47,7 +47,6 @@ window.app = {
     const rangeCtrl = document.getElementById('date-range-container');
     const singleCtrl = document.getElementById('date-single-container');
     
-    // UI 控制：總覽與行事曆顯示區間，單位顯示單日
     if(viewId === 'view-dashboard' || viewId === 'view-calendar') {
       rangeCtrl.classList.remove('d-none');
       singleCtrl.classList.add('d-none');
@@ -86,7 +85,7 @@ window.app = {
 
   refreshCurrentPage() {
     if(document.getElementById('view-dashboard').classList.contains('active')) app.dashboard.loadDashboard();
-    else if(document.getElementById('view-dept-flows').classList.contains('active')) app.department.loadDeptFlows(this.currentDept);
+    else if(document.getElementById('view-dept-flows').classList.contains('active')) app.department.loadDeptFlows(app.currentDept);
     else if(document.getElementById('view-calendar').classList.contains('active')) app.calendar.loadCalendar();
   }
 };
