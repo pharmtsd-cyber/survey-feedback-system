@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>問卷回饋系統</title>
+  <title>任務問卷系統</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   <link rel="stylesheet" href="style.css">
@@ -14,14 +14,13 @@
 
   <div class="loading-overlay" id="loading"><div class="spinner-border text-primary" role="status"></div></div>
 
-  <!-- 登入頁 -->
   <div id="login-page" class="page-view active container mt-5">
     <div class="row justify-content-center">
       <div class="col-md-5">
         <div class="card shadow border-0">
           <div class="card-body p-5">
             <div class="text-center mb-4 text-primary"><i class="bi bi-ui-checks-grid" style="font-size: 3rem;"></i></div>
-            <h3 class="text-center mb-4 fw-bold text-dark">問卷回饋系統</h3>
+            <h3 class="text-center mb-4 fw-bold text-dark">任務問卷系統</h3>
             <input type="text" id="login-emp-id" class="form-control form-control-lg mb-4 text-center fw-bold" placeholder="請輸入員工編號">
             <div class="d-grid gap-3">
               <button class="btn btn-outline-primary btn-lg fw-bold" onclick="app.login('desktop')"><i class="bi bi-pc-display me-2"></i>桌機版登入</button>
@@ -35,63 +34,47 @@
 
   <div id="main-system" class="page-view" style="display:none;">
     <div id="wrapper">
-      <!-- 側邊欄 -->
       <nav id="sidebar">
         <div class="sidebar-header d-flex flex-column align-items-center py-4" onclick="app.toggleSidebar()" style="cursor: pointer;">
           <i class="bi bi-person-circle text-primary sidebar-icon mb-2 hover-scale"></i>
-          <h5 class="fw-bold sidebar-text text-center w-100 mb-1">問卷回饋系統</h5>
+          <h5 class="fw-bold sidebar-text text-center w-100 mb-1">任務系統</h5>
           <small id="user-info" class="text-muted sidebar-text text-center w-100 fw-bold"></small>
         </div>
         <ul class="list-unstyled components pb-4">
           <li class="active"><a href="#" onclick="app.dashboard.loadDashboard(this)"><i class="bi bi-house-door"></i> <span class="sidebar-text">系統總覽</span></a></li>
           <li><a href="#" onclick="app.calendar.loadCalendar(this)"><i class="bi bi-calendar-check"></i> <span class="sidebar-text">行事曆總覽</span></a></li>
-          <li class="nav-header mt-3 px-3 text-secondary fw-bold sidebar-text small"><i class="bi bi-card-checklist me-1"></i>問卷類型 (各單位)</li>
+          <li class="nav-header mt-3 px-3 text-secondary fw-bold sidebar-text small"><i class="bi bi-card-checklist me-1"></i>執行任務 (單位)</li>
           <div id="dept-menu-container"></div>
-          <li class="nav-header mt-3 px-3 text-secondary fw-bold sidebar-text small"><i class="bi bi-tools me-1"></i>後台維護</li>
-          <li><a href="#" onclick="app.admin.loadAdminFlows(this)"><i class="bi bi-diagram-3"></i> <span class="sidebar-text">維護 FLOW</span></a></li>
-          <li><a href="#" onclick="app.admin.loadAdminQuestions(this)"><i class="bi bi-ui-checks"></i> <span class="sidebar-text">設計問卷題目</span></a></li>
-          
-          <!-- ✅ 新增登出按鈕 -->
+          <li class="nav-header mt-3 px-3 text-secondary fw-bold sidebar-text small"><i class="bi bi-tools me-1"></i>後台設定區</li>
+          <li><a href="#" onclick="app.admin.loadAdminWorkflows(this)"><i class="bi bi-diagram-3-fill text-primary"></i> <span class="sidebar-text">維護 任務流</span></a></li>
+          <li><a href="#" onclick="app.admin.loadAdminFlows(this)"><i class="bi bi-file-earmark-text text-info"></i> <span class="sidebar-text">維護 問卷表單</span></a></li>
+          <li><a href="#" onclick="app.admin.loadAdminQuestions(this)"><i class="bi bi-ui-checks"></i> <span class="sidebar-text">設計 題目</span></a></li>
           <li class="mt-4 border-top pt-2">
-            <a href="#" onclick="app.logout()" class="text-danger fw-bold">
-              <i class="bi bi-box-arrow-left text-danger"></i> <span class="sidebar-text">登出系統</span>
-            </a>
+            <a href="#" onclick="app.logout()" class="text-danger fw-bold"><i class="bi bi-box-arrow-left text-danger"></i> <span class="sidebar-text">登出系統</span></a>
           </li>
         </ul>
       </nav>
 
-      <!-- 主內容 -->
       <div id="content">
-        <!-- 頂部控制區 -->
         <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3 bg-white p-3 rounded shadow-sm border-0">
-          
-          <!-- ✅ 加上漢堡按鈕與標題並排 -->
           <div class="d-flex align-items-center gap-2">
-            <button class="btn btn-outline-secondary border-0 fs-4 py-0 mobile-menu-btn" onclick="app.toggleSidebar()">
-              <i class="bi bi-list"></i>
-            </button>
+            <button class="btn btn-outline-secondary border-0 fs-4 py-0 mobile-menu-btn" onclick="app.toggleSidebar()"><i class="bi bi-list"></i></button>
             <h4 id="page-main-title" class="fw-bold mb-0 text-dark">系統總覽</h4>
           </div>
-          
           <div class="d-flex align-items-center gap-2">
-            <!-- 手動更新按鈕 (清除快取) -->
             <button class="btn btn-outline-secondary btn-sm fw-bold shadow-sm" onclick="app.forceRefresh()"><i class="bi bi-arrow-clockwise"></i> 重新整理</button>
-            
             <div class="d-flex align-items-center gap-2 bg-light px-3 py-2 rounded border d-none" id="date-range-container">
               <input type="date" id="start-date" class="form-control form-control-sm border-0 bg-transparent fw-bold text-primary" onchange="app.refreshCurrentPage()">
               <span class="text-muted fw-bold">~</span>
               <input type="date" id="end-date" class="form-control form-control-sm border-0 bg-transparent fw-bold text-primary" onchange="app.refreshCurrentPage()">
             </div>
-            
             <div class="d-flex align-items-center gap-2 bg-light px-3 py-2 rounded border d-none" id="date-single-container">
-              <!-- ✅ 加上 text-nowrap 避免「單日：」被截斷換行 -->
               <label class="fw-bold text-secondary mb-0 text-nowrap">單日：</label>
               <input type="date" id="target-date" class="form-control form-control-sm border-0 bg-transparent fw-bold text-primary" onchange="app.refreshCurrentPage()">
             </div>
           </div>
         </div>
 
-        <!-- 系統總覽 -->
         <div id="view-dashboard" class="content-view active">
           <div class="row">
             <div class="col-md-6 mb-3">
@@ -102,7 +85,7 @@
             </div>
             <div class="col-md-6 mb-3">
               <div class="card bg-warning text-dark shadow-sm h-100 border-0">
-                <div class="card-header border-0 fs-5"><i class="bi bi-clock-history"></i> 未完成清單</div>
+                <div class="card-header border-0 fs-5"><i class="bi bi-clock-history"></i> 未完成任務流清單</div>
                 <div class="card-body"><ul id="dash-inc-list" class="list-unstyled mb-0" style="max-height: 250px; overflow-y: auto;"></ul></div>
               </div>
             </div>
@@ -111,13 +94,11 @@
           <div id="dash-charts" class="row mt-2"></div>
         </div>
         
-        <!-- 行事曆總覽 -->
         <div id="view-calendar" class="content-view">
           <div class="card shadow-sm border-0 mb-4"><div class="card-body p-2 p-md-3" id="calendar-container"></div></div>
           <div id="calendar-details-container"></div>
         </div>
 
-        <!-- 單位問卷清單 -->
         <div id="view-dept-flows" class="content-view">
           <div class="row mb-4">
             <div class="col-md-6 mb-3">
@@ -128,7 +109,7 @@
             </div>
             <div class="col-md-6 mb-3">
               <div class="card bg-warning text-dark shadow-sm h-100 border-0">
-                <div class="card-header border-0 fs-5"><i class="bi bi-clock-history"></i> 單位未完成清單</div>
+                <div class="card-header border-0 fs-5"><i class="bi bi-clock-history"></i> 單位未完成任務</div>
                 <div class="card-body"><ul id="dept-inc-list" class="list-unstyled mb-0" style="max-height: 250px; overflow-y: auto;"></ul></div>
               </div>
             </div>
@@ -136,7 +117,6 @@
           <div id="dept-accordion-container"></div>
         </div>
 
-        <!-- 問卷填寫 (自動紅框標示) -->
         <div id="view-form" class="content-view">
           <div id="form-container"></div>
           <div class="d-flex gap-2 mt-4 pb-4">
@@ -146,15 +126,22 @@
           </div>
         </div>
 
-        <!-- 後台維護 FLOW -->
+        <!-- 後台維護 任務流 (Workflows) -->
+        <div id="view-admin-workflows" class="content-view">
+          <div class="alert alert-info border-0 shadow-sm"><i class="bi bi-info-circle-fill"></i> <strong>提示：</strong>這是最高層級的「任務包」。您可以在此將多個子表單打包成一個連續任務。</div>
+          <button class="btn btn-primary mb-3 shadow-sm fw-bold" onclick="app.admin.adminEditWorkflow(null)"><i class="bi bi-plus-lg"></i> 新增任務流</button>
+          <div id="admin-workflows-list"></div>
+        </div>
+
+        <!-- 後台維護 子表單 (Flows) -->
         <div id="view-admin-flows" class="content-view">
-          <button class="btn btn-primary mb-3 shadow-sm fw-bold" onclick="app.admin.adminEditFlow(null)"><i class="bi bi-plus-lg"></i> 新增 FLOW</button>
+          <button class="btn btn-info mb-3 shadow-sm fw-bold text-white" onclick="app.admin.adminEditFlow(null)"><i class="bi bi-plus-lg"></i> 新增表單</button>
           <div id="admin-flows-list"></div>
         </div>
 
         <!-- 後台維護 題目 -->
         <div id="view-admin-questions" class="content-view">
-          <button class="btn btn-primary mb-3 shadow-sm fw-bold" onclick="app.admin.adminEditQuestion(null)"><i class="bi bi-plus-lg"></i> 新增題目</button>
+          <button class="btn btn-dark mb-3 shadow-sm fw-bold" onclick="app.admin.adminEditQuestion(null)"><i class="bi bi-plus-lg"></i> 新增題目</button>
           <div id="admin-questions-list"></div>
         </div>
       </div>
@@ -164,7 +151,7 @@
   <div class="modal fade" id="adminModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content shadow border-0">
-        <div class="modal-header bg-light"><h5 class="modal-title fw-bold" id="adminModalTitle"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-header bg-light"><h5 class="modal-title fw-bold text-dark" id="adminModalTitle"></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body" id="adminModalBody"></div>
         <div class="modal-footer border-0">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
