@@ -11,8 +11,10 @@ app.calendar = {
         initialView: 'dayGridMonth', locale: 'zh-tw', height: 'auto',
         events: async (info, successCallback, failureCallback) => {
           try {
-            const yearMonth = info.startStr.substring(0, 7); 
-            const data = await app.api({ action: 'getCalendar', yearMonth: yearMonth, department: app.user.dept });
+            // 向 GAS 請求當前視圖的日期區間 (包含前後幾天)
+            const startDate = info.startStr.substring(0, 10); 
+            const endDate = info.endStr.substring(0, 10);
+            const data = await app.api({ action: 'getCalendar', startDate: startDate, endDate: endDate, department: app.user.dept });
             
             let events = [];
             for(let dateStr in data) {
@@ -20,7 +22,7 @@ app.calendar = {
               events.push({
                 start: dateStr,
                 title: `完成: ${d.completedCount} | 未完: ${d.incompleteCount}`,
-                color: d.incompleteCount > 0 ? '#dc3545' : '#198754', // 紅色或綠色
+                color: d.incompleteCount > 0 ? '#dc3545' : '#198754',
                 extendedProps: { details: d.details }
               });
             }
@@ -35,26 +37,37 @@ app.calendar = {
     } else {
       this.instance.refetchEvents();
     }
-    document.getElementById('calendar-details-container').innerHTML = '<div class="text-muted mt-3">請點選行事曆上的日期方塊以查看該日明細。</div>';
+    document.getElementById('calendar-details-container').innerHTML = '<div class="text-muted mt-3">請點選上方行事曆有標記的日期，即可於此查看明細。</div>';
   },
 
   renderDetails(dateStr, details) {
-    let html = `<h5 class="fw-bold mb-3 mt-4 border-bottom pb-2"><i class="bi bi-card-list"></i> ${dateStr} 紀錄明細</h5><div class="list-group shadow-sm">`;
+    let html = `<h5 class="fw-bold mb-3 mt-4 border-bottom pb-2"><i class="bi bi-card-list"></i> ${dateStr} 紀錄明細</h5>`;
+
+    // 將明細依據「單位」分群
+    let grouped = {};
     details.forEach(d => {
-      let badgeClass = d.status.includes('異常') || d.status === '未完成' ? 'bg-danger' : 'bg-success';
-      html += `
-        <div class="list-group-item d-flex justify-content-between align-items-center">
-          <div>
-            <div class="fw-bold fs-5">${d.flowName} <span class="badge bg-light text-dark border ms-2">${d.dept}</span></div>
-            <div class="text-muted small mt-1">
-              ${d.empName ? `<i class="bi bi-person"></i> ${d.empName} ｜ ` : ''} 
-              ${d.time ? `<i class="bi bi-clock"></i> ${d.time}` : '尚未填寫'}
-            </div>
-          </div>
-          <span class="badge ${badgeClass} fs-6">${d.status}</span>
-        </div>`;
+      if(!grouped[d.dept]) grouped[d.dept] = [];
+      grouped[d.dept].push(d);
     });
-    html += '</div>';
+
+    for(let dept in grouped) {
+      html += `<h6 class="fw-bold text-primary mt-3"><i class="bi bi-building"></i> ${dept}</h6><div class="list-group shadow-sm mb-3">`;
+      grouped[dept].forEach(d => {
+        let badgeClass = d.status.includes('異常') || d.status === '未完成' ? 'bg-danger' : 'bg-success';
+        html += `
+          <div class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-bold fs-5">${d.flowName}</div>
+              <div class="text-muted small mt-1">
+                ${d.empName ? `<i class="bi bi-person"></i> ${d.empName} ｜ ` : ''}
+                ${d.time ? `<i class="bi bi-clock"></i> ${d.time}` : '尚未填寫'}
+              </div>
+            </div>
+            <span class="badge ${badgeClass} fs-6">${d.status}</span>
+          </div>`;
+      });
+      html += '</div>';
+    }
     document.getElementById('calendar-details-container').innerHTML = html;
   }
 };
