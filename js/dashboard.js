@@ -40,8 +40,16 @@ app.dashboard = {
       : '<li class="p-2 text-white fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 目前區間無異常！</li>';
       
     document.getElementById('dash-inc-list').innerHTML = data.incompleteFlows.length > 0
-      ? data.incompleteFlows.map(f => `<li class="mb-2 fs-6 px-2 d-flex align-items-start"><i class="bi bi-x-circle text-danger me-2 mt-1"></i> <div><span class="badge bg-light text-dark border me-1">${f.dept}</span> ${f.name}</div></li>`).join('')
-      : '<li class="px-2"><i class="bi bi-check-circle text-success fs-5 me-2"></i> 區間內全數完成！</li>';
+      ? data.incompleteFlows.map(f => `
+        <li class="mb-2 p-2 bg-white rounded shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 border-start border-warning border-4">
+          <div class="d-flex flex-wrap align-items-center gap-1">
+            <i class="bi bi-x-circle text-danger me-1"></i>
+            <span class="badge bg-light text-dark border">${f.dept}</span><span class="badge bg-info text-dark border">${f.category}</span>
+            <span class="fw-bold ms-1 text-break">${f.name}</span>
+          </div>
+          <button class="btn btn-sm btn-primary fw-bold text-nowrap shadow-sm" onclick="app.department.openForm('new', '${f.id}', '${f.name}')">前往填寫</button>
+        </li>`).join('')
+      : '<li class="p-2 text-success fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 區間內全數完成！</li>';
 
     this.loadDashboardCharts(startDate, endDate);
   },
