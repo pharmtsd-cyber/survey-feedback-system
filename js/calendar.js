@@ -44,9 +44,9 @@ app.calendar = {
               });
 
               if (filteredDetails.length > 0) {
-                // 依據過濾後的資料重新計算已完成與未完成數
+                // 依據過濾後的資料重新計算已完成與未填寫數
                 let comp = filteredDetails.filter(x => x.status.includes('已完成')).length;
-                let incomp = filteredDetails.filter(x => x.status === '未完成').length;
+                let incomp = filteredDetails.filter(x => x.status === '未填寫').length;
                 events.push({
                   start: dateStr,
                   title: `完成: ${comp} | 未完: ${incomp}`,
@@ -96,7 +96,7 @@ app.calendar = {
       
       grouped[dept].forEach(d => {
         let badgeClass = ''; let jumpBtn = '';
-        if (d.status === '未完成') {
+        if (d.status === '未填寫') {
           badgeClass = 'bg-secondary';
           jumpBtn = `<button class="btn btn-sm btn-primary fw-bold ms-2 shadow-sm" onclick="app.department.startWorkflowFromCalendar('${d.wfId}', '${dept}', '${dateStr}')">啟動任務</button>`;
         } else {
