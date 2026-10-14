@@ -7,7 +7,7 @@ app.department = {
     const targetDate = document.getElementById('target-date').value;
     const res = await app.api({ action: 'getDeptFlows', department: dept, targetDate: targetDate });
     
-    // 渲染單位異常卡片
+    // ✅ 渲染單位異常卡片 (新增分類標籤)
     document.getElementById('dept-exc-count').innerText = res.exceptionCount;
     let excHtml = '';
     if(res.exceptionsList.length > 0) {
@@ -16,13 +16,17 @@ app.department = {
         excHtml += `
           <div class="accordion-item bg-transparent border-bottom border-light">
             <h2 class="accordion-header">
-              <button class="accordion-button collapsed bg-transparent text-white p-2" type="button" data-bs-toggle="collapse" data-bs-target="#${colId}">
-                <strong class="fs-6 me-2">${e.flowName}</strong>
+              <button class="accordion-button collapsed bg-transparent text-white p-2 d-flex flex-wrap gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#${colId}">
+                <strong class="fs-6 mb-0">${e.flowName}</strong>
+                <div class="ms-auto d-flex gap-1">
+                  <span class="badge bg-light text-danger shadow-sm">${e.flowDept}</span>
+                  <span class="badge bg-light text-primary shadow-sm">${e.flowCategory}</span>
+                </div>
               </button>
             </h2>
             <div id="${colId}" class="accordion-collapse collapse" data-bs-parent="#dept-acc-exceptions">
               <div class="accordion-body p-2 pt-0 text-white-50 small">
-                <div><i class="bi bi-person"></i> ${e.empName} ｜ <i class="bi bi-clock"></i> ${e.time}</div>
+                <div class="mt-2"><i class="bi bi-person"></i> ${e.empName} ｜ <i class="bi bi-clock"></i> ${e.time}</div>
                 <div class="mt-2 bg-white text-danger px-2 py-1 rounded fw-bold shadow-sm d-inline-block">${e.qTitle} : ${e.value}</div>
                 <div class="mt-2 text-end">
                   <button class="btn btn-sm btn-light text-primary fw-bold shadow-sm" onclick="app.department.openForm('edit', '${e.flowId}', '${e.flowName}', '${e.recordId}')">前往回覆/修改 <i class="bi bi-arrow-right"></i></button>
@@ -36,10 +40,19 @@ app.department = {
     }
     document.getElementById('dept-acc-exceptions').innerHTML = excHtml;
 
-    // 渲染單位未完成清單
+    // ✅ 渲染單位未完成清單 (新增單位與分類標籤)
     document.getElementById('dept-inc-list').innerHTML = res.incompleteList.length > 0
-      ? res.incompleteList.map(f => `<li class="mb-2 fs-6 px-2 d-flex justify-content-between align-items-center"><div class="fw-bold"><i class="bi bi-x-circle text-danger me-2"></i> ${f.name}</div><button class="btn btn-sm btn-light text-dark fw-bold shadow-sm" onclick="app.department.openForm('new', '${f.id}', '${f.name}')">前往填寫</button></li>`).join('')
-      : '<li class="px-2"><i class="bi bi-check-circle text-success fs-5 me-2"></i> 本日全數完成！</li>';
+      ? res.incompleteList.map(f => `
+        <li class="mb-2 p-2 bg-white rounded shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+          <div class="d-flex flex-wrap align-items-center gap-1">
+            <i class="bi bi-x-circle text-danger me-1"></i>
+            <span class="badge bg-light text-dark border">${f.dept}</span>
+            <span class="badge bg-info text-dark border">${f.category}</span>
+            <span class="fw-bold ms-1 text-break">${f.name}</span>
+          </div>
+          <button class="btn btn-sm btn-primary fw-bold text-nowrap" onclick="app.department.openForm('new', '${f.id}', '${f.name}')">前往填寫</button>
+        </li>`).join('')
+      : '<li class="p-2 text-success fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 本日指定任務全數完成！</li>';
 
     // 渲染手風琴分類清單
     let html = '';
