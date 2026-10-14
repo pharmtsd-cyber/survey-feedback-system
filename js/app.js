@@ -2,7 +2,8 @@ const GAS_API = "https://script.google.com/macros/s/AKfycbzB4n24LjIVF316LDnGTkxF
 
 window.app = {
   user: null, currentDept: '', currentFlow: null, formMode: 'new', questions: [],
-  cache: { dashboard: null, deptFlows: null, calendar: null }, // ✅ 快取機制
+  // ✅ 修改1：將快取改為物件，藉此儲存多個分頁與日期的狀態
+  cache: { dashboard: {}, deptFlows: {}, calendar: {} },
 
   init() {
     const twTime = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
@@ -33,9 +34,9 @@ window.app = {
     }
   },
 
-  // ✅ 手動強制更新 (清除快取)
+// ✅ 修改2：重置快取時符合新結構
   forceRefresh() {
-    this.cache = { dashboard: null, deptFlows: null, calendar: null };
+    this.cache = { dashboard: {}, deptFlows: {}, calendar: {} };
     this.refreshCurrentPage();
   },
 
