@@ -13,14 +13,17 @@ app.calendar = {
           try {
             const startDate = info.startStr.substring(0, 10); 
             const endDate = info.endStr.substring(0, 10);
-            const cacheKey = `${startDate}_${endDate}_${app.user.dept}`;
+            // ✅ 修改1：快取鍵值改為全域 (all)
+            const cacheKey = `${startDate}_${endDate}_all`;
             
             let data;
-            if (app.cache.calendar && app.cache.calendar.key === cacheKey) {
-                data = app.cache.calendar.data;
+            // ✅ 修改2：對應新的物件快取結構
+            if (app.cache.calendar[cacheKey]) {
+                data = app.cache.calendar[cacheKey];
             } else {
-                data = await app.api({ action: 'getCalendar', startDate, endDate, department: app.user.dept });
-                app.cache.calendar = { key: cacheKey, data };
+                // ✅ 修改3：department 傳送空字串，讓後端讀取所有授權單位的紀錄，解決「沒有同步到資料」
+                data = await app.api({ action: 'getCalendar', startDate, endDate, department: '' });
+                app.cache.calendar[cacheKey] = data;
             }
             
             let events = [];
@@ -37,7 +40,8 @@ app.calendar = {
           } catch(e) { failureCallback(e); }
         },
         eventClick: (info) => {
-          this.renderDetails(info.event.startStr, info.event.extendedProps.details);
+          // ✅ 修改4：防呆擷取前10碼，避免 ISO 時區格式造成畫面顯示異常
+          this.renderDetails(info.event.startStr.substring(0, 10), info.event.extendedProps.details);
         }
       });
       this.instance.render();
