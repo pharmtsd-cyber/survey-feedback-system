@@ -62,8 +62,18 @@ app.calendar = {
     for(let dept in grouped) {
       html += `<h6 class="fw-bold text-primary mt-3"><i class="bi bi-building"></i> ${dept}</h6><div class="list-group shadow-sm mb-3">`;
       grouped[dept].forEach(d => {
-        let badgeClass = d.status.includes('異常') || d.status === '未完成' ? 'bg-danger' : 'bg-success';
-        let jumpBtn = d.recordId ? `<button class="btn btn-sm btn-outline-${badgeClass.split('-')[1]} fw-bold ms-2 shadow-sm" onclick="app.department.openForm('edit', '${d.flowId}', '${d.flowName}', '${d.recordId}')">查看紀錄</button>` : '';
+        // ✅ 根據狀態判斷標籤顏色與按鈕
+        let badgeClass = '';
+        let jumpBtn = '';
+        
+        if (d.status === '未完成') {
+          badgeClass = 'bg-secondary';
+          jumpBtn = `<button class="btn btn-sm btn-primary fw-bold ms-2 shadow-sm" onclick="app.department.openForm('new', '${d.flowId}', '${d.flowName}')">前往填寫</button>`;
+        } else {
+          badgeClass = d.status.includes('異常') ? 'bg-danger' : 'bg-success';
+          jumpBtn = d.recordId ? `<button class="btn btn-sm btn-outline-${badgeClass.split('-')[1]} fw-bold ms-2 shadow-sm" onclick="app.department.openForm('edit', '${d.flowId}', '${d.flowName}', '${d.recordId}')">查看紀錄</button>` : '';
+        }
+
         html += `
           <div class="list-group-item d-flex justify-content-between align-items-center">
             <div>
