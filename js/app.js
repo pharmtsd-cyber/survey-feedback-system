@@ -1,7 +1,7 @@
 const GAS_API = "https://script.google.com/macros/s/AKfycbzB4n24LjIVF316LDnGTkxFDe7byn17vgrpHU_lQEeZww8iR8K7qLDCj4e2NOdm_ulCBw/exec"; 
 
 window.app = {
-  user: null, currentDept: '', currentFlow: null, formMode: 'new', questions: [],
+  user: null, currentDept: '', currentFlow: null, currentWorkflow: null, formMode: 'new', questions: [],
   cache: { dashboard: {}, deptFlows: {}, calendar: {} },
 
   init() {
@@ -50,7 +50,7 @@ window.app = {
   switchView(viewId, title = '') {
     document.querySelectorAll('.content-view').forEach(el => el.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
-    if (title) document.getElementById('page-main-title').innerText = title;
+    if (title) document.getElementById('page-main-title').innerHTML = title;
     
     const rangeCtrl = document.getElementById('date-range-container');
     const singleCtrl = document.getElementById('date-single-container');
@@ -73,25 +73,6 @@ window.app = {
     }
   },
 
-  logout() {
-    if(!confirm("確定要登出嗎？")) return;
-    
-    // 清空使用者資料與快取
-    this.user = null;
-    this.currentDept = '';
-    this.cache = { dashboard: {}, deptFlows: {}, calendar: {} };
-    document.getElementById('login-emp-id').value = '';
-    
-    // 切換畫面
-    document.getElementById('main-system').style.display = 'none';
-    document.getElementById('login-page').style.display = 'block';
-    
-    // 重置 body 模式並收合手機側邊欄
-    document.body.className = 'desktop-mode';
-    document.getElementById('sidebar').classList.remove('open');
-    document.getElementById('sidebar').classList.remove('collapsed');
-  },
-
   async login(mode) {
     const empId = document.getElementById('login-emp-id').value;
     if(!empId) return alert("請輸入員工編號");
@@ -108,6 +89,19 @@ window.app = {
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('main-system').style.display = 'block';
     app.dashboard.loadDashboard(document.querySelector('#sidebar ul li a'));
+  },
+
+  logout() {
+    if(!confirm("確定要登出嗎？")) return;
+    this.user = null; this.currentDept = '';
+    this.cache = { dashboard: {}, deptFlows: {}, calendar: {} };
+    document.getElementById('login-emp-id').value = '';
+    
+    document.getElementById('main-system').style.display = 'none';
+    document.getElementById('login-page').style.display = 'block';
+    document.body.className = 'desktop-mode';
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar').classList.remove('collapsed');
   },
 
   refreshCurrentPage() {
