@@ -2,7 +2,7 @@ const GAS_API = "https://script.google.com/macros/s/AKfycbzB4n24LjIVF316LDnGTkxF
 
 window.app = {
   user: null, currentDept: '', currentFlow: null, currentWorkflow: null, formMode: 'new', questions: [],
-  cache: { dashboard: {}, deptFlows: {}, calendar: {} },
+  cache: { dashboard: {}, deptFlows: {}, calendar: {}, questions: {} },
 
   init() {
     const twTime = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
@@ -34,7 +34,7 @@ window.app = {
   },
 
   forceRefresh() {
-    this.cache = { dashboard: {}, deptFlows: {}, calendar: {} };
+    this.cache = { dashboard: {}, deptFlows: {}, calendar: {}, questions: {} };
     this.refreshCurrentPage();
   },
 
@@ -91,10 +91,10 @@ window.app = {
     app.dashboard.loadDashboard(document.querySelector('#sidebar ul li a'));
   },
 
-  logout() {
+    logout() {
     if(!confirm("確定要登出嗎？")) return;
     this.user = null; this.currentDept = '';
-    this.cache = { dashboard: {}, deptFlows: {}, calendar: {} };
+    this.cache = { dashboard: {}, deptFlows: {}, calendar: {}, questions: {} };
     document.getElementById('login-emp-id').value = '';
     
     document.getElementById('main-system').style.display = 'none';
@@ -104,7 +104,7 @@ window.app = {
     document.getElementById('sidebar').classList.remove('collapsed');
   },
 
-  refreshCurrentPage() {
+    refreshCurrentPage() {
     if(document.getElementById('view-dashboard').classList.contains('active')) app.dashboard.loadDashboard();
     else if(document.getElementById('view-dept-flows').classList.contains('active')) app.department.loadDeptFlows(app.currentDept);
     else if(document.getElementById('view-calendar').classList.contains('active')) app.calendar.loadCalendar();
