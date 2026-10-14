@@ -132,13 +132,10 @@
           <div id="dept-accordion-container"></div>
         </div>
 
+
         <div id="view-form" class="content-view">
           <div id="form-container"></div>
-          <div class="d-flex gap-2 mt-4 pb-4">
-            <button class="btn btn-secondary flex-fill fw-bold shadow-sm py-2" onclick="app.department.goBack()">返回清單</button>
-            <button class="btn btn-danger flex-fill fw-bold shadow-sm py-2" id="btn-delete-form" onclick="app.department.deleteRecord()" style="display:none;">刪除紀錄</button>
-            <button class="btn btn-primary flex-fill fw-bold shadow-sm py-2" id="btn-submit-form" onclick="app.department.submitForm()">確認儲存</button>
-          </div>
+          <div class="d-flex gap-2 mt-4 pb-4" id="form-actions"></div>
         </div>
 
         <!-- 後台維護 任務流 (Workflows) -->
