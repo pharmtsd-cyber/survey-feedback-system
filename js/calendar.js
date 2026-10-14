@@ -13,15 +13,12 @@ app.calendar = {
           try {
             const startDate = info.startStr.substring(0, 10); 
             const endDate = info.endStr.substring(0, 10);
-            // ✅ 修改1：快取鍵值改為全域 (all)
             const cacheKey = `${startDate}_${endDate}_all`;
             
             let data;
-            // ✅ 修改2：對應新的物件快取結構
             if (app.cache.calendar[cacheKey]) {
                 data = app.cache.calendar[cacheKey];
             } else {
-                // ✅ 修改3：department 傳送空字串，讓後端讀取所有授權單位的紀錄，解決「沒有同步到資料」
                 data = await app.api({ action: 'getCalendar', startDate, endDate, department: '' });
                 app.cache.calendar[cacheKey] = data;
             }
@@ -40,7 +37,6 @@ app.calendar = {
           } catch(e) { failureCallback(e); }
         },
         eventClick: (info) => {
-          // ✅ 修改4：防呆擷取前10碼，避免 ISO 時區格式造成畫面顯示異常
           this.renderDetails(info.event.startStr.substring(0, 10), info.event.extendedProps.details);
         }
       });
@@ -52,7 +48,7 @@ app.calendar = {
   },
 
   renderDetails(dateStr, details) {
-    let html = `<h5 class="fw-bold mb-3 mt-4 border-bottom pb-2"><i class="bi bi-card-list"></i> ${dateStr} 紀錄明細</h5>`;
+    let html = `<h5 class="fw-bold mb-3 mt-4 border-bottom pb-2"><i class="bi bi-card-list"></i> ${dateStr} 任務狀態明細</h5>`;
     let grouped = {};
     details.forEach(d => {
       if(!grouped[d.dept]) grouped[d.dept] = [];
@@ -60,29 +56,23 @@ app.calendar = {
     });
 
     for(let dept in grouped) {
-      html += `<h6 class="fw-bold text-primary mt-3"><i class="bi bi-building"></i> ${dept}</h6><div class="list-group shadow-sm mb-3">`;
+      html += `<h6 class="fw-bold text-primary mt-3"><i class="bi bi-building"></i> ${dept}</h6><div class="list-group shadow-sm mb-3 border-0">`;
       grouped[dept].forEach(d => {
-        // ✅ 根據狀態判斷標籤顏色與按鈕
-        let badgeClass = '';
-        let jumpBtn = '';
+        let badgeClass = ''; let jumpBtn = '';
         
         if (d.status === '未完成') {
           badgeClass = 'bg-secondary';
-          jumpBtn = `<button class="btn btn-sm btn-primary fw-bold ms-2 shadow-sm" onclick="app.department.openForm('new', '${d.flowId}', '${d.flowName}')">前往填寫</button>`;
+          jumpBtn = `<button class="btn btn-sm btn-primary fw-bold ms-2 shadow-sm" onclick="app.department.startWorkflow('${d.wfId}', '${d.wfName}', '${d.flowIds}')">啟動任務</button>`;
         } else {
           badgeClass = d.status.includes('異常') ? 'bg-danger' : 'bg-success';
-          jumpBtn = d.recordId ? `<button class="btn btn-sm btn-outline-${badgeClass.split('-')[1]} fw-bold ms-2 shadow-sm" onclick="app.department.openForm('edit', '${d.flowId}', '${d.flowName}', '${d.recordId}')">查看紀錄</button>` : '';
         }
 
         html += `
-          <div class="list-group-item d-flex justify-content-between align-items-center">
+          <div class="list-group-item d-flex justify-content-between align-items-center py-3">
             <div>
-              <div class="fw-bold fs-5">${d.flowName} <span class="badge bg-light text-dark border ms-2 fs-6">${d.category}</span></div>
-              <div class="text-muted small mt-1">
-                ${d.empName ? `<i class="bi bi-person"></i> ${d.empName} ｜ ` : ''} ${d.time ? `<i class="bi bi-clock"></i> ${d.time}` : '尚未填寫'}
-              </div>
+              <div class="fw-bold fs-5 text-dark">${d.wfName} <span class="badge bg-light text-dark border ms-2 fs-6">${d.category}</span></div>
             </div>
-            <div class="d-flex align-items-center"><span class="badge ${badgeClass} fs-6">${d.status}</span>${jumpBtn}</div>
+            <div class="d-flex align-items-center"><span class="badge ${badgeClass} fs-6 shadow-sm">${d.status}</span>${jumpBtn}</div>
           </div>`;
       });
       html += '</div>';
