@@ -1,6 +1,17 @@
 app.admin = {
+  // ✅ 核心防線：重新拉取使用者權限與最新單位，更新側邊欄
+  async refreshSidebar() {
+    const userData = await app.api({ action: 'login', empId: app.user.empId });
+    app.user.availableDepts = userData.availableDepts;
+    let menuHtml = '';
+    app.user.availableDepts.forEach(d => {
+      menuHtml += `<li><a onclick="app.department.loadDeptFlows('${d}', this)"><i class="bi bi-caret-right"></i> <span class="sidebar-text">${d}</span></a></li>`;
+    });
+    document.getElementById('dept-menu-container').innerHTML = menuHtml;
+  },
+
   async loadAdminFlows(menuItem) {
-    app.setActiveMenu(menuItem);
+    if(menuItem) app.setActiveMenu(menuItem);
     app.switchView('view-admin-flows', '維護 FLOW 表單');
     const data = await app.api({ action: 'getAdminData' });
     
@@ -48,6 +59,8 @@ app.admin = {
         active: document.getElementById('af-active').checked
       }});
       bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide();
+      
+      await this.refreshSidebar(); // ✅ 更新側邊欄
       this.loadAdminFlows();
     };
     new bootstrap.Modal(document.getElementById('adminModal')).show();
@@ -56,11 +69,13 @@ app.admin = {
   async adminDelFlow(id) {
     if(!confirm("確定要刪除嗎？這將會影響既有設定。")) return;
     await app.api({ action: 'adminDeleteFlow', id: id });
+    
+    await this.refreshSidebar(); // ✅ 更新側邊欄
     this.loadAdminFlows();
   },
 
   async loadAdminQuestions(menuItem) {
-    app.setActiveMenu(menuItem);
+    if(menuItem) app.setActiveMenu(menuItem);
     app.switchView('view-admin-questions', '設計問卷題目');
     const data = await app.api({ action: 'getAdminData' });
     
