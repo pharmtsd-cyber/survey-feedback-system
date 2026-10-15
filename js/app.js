@@ -18,17 +18,21 @@ window.app = {
 
   showLoading(show) { document.getElementById('loading').style.display = show ? 'flex' : 'none'; },
 
-  async api(payload) {
-    this.showLoading(true);
+  async api(payload, background = false) {
+    if (!background) this.showLoading(true);
     try {
       const res = await fetch(GAS_API, { method: 'POST', body: JSON.stringify(payload) });
       const data = await res.json();
-      this.showLoading(false);
+      if (!background) this.showLoading(false);
       if (!data.success) throw new Error(data.error);
       return data.data;
     } catch (e) {
-      this.showLoading(false);
-      alert("系統錯誤: " + e.message);
+      if (!background) {
+         this.showLoading(false);
+         alert("系統錯誤: " + e.message);
+      } else {
+         console.error("背景傳輸失敗:", e); // 背景失敗時只在控制台報錯，不打斷使用者
+      }
       throw e;
     }
   },
