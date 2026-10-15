@@ -9,13 +9,10 @@
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
-  <!-- ✅ 引入 SortableJS 支援拖拉排序 -->
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
 <body class="desktop-mode">
-
   <div class="loading-overlay" id="loading"><div class="spinner-border text-primary" role="status"></div></div>
-
   <div id="login-page" class="page-view active container mt-5">
     <div class="row justify-content-center">
       <div class="col-md-5">
@@ -51,9 +48,7 @@
           <li><a href="#" onclick="app.admin.loadAdminWorkflows(this)"><i class="bi bi-diagram-3-fill text-primary"></i> <span class="sidebar-text">維護 任務流</span></a></li>
           <li><a href="#" onclick="app.admin.loadAdminFlows(this)"><i class="bi bi-file-earmark-text text-info"></i> <span class="sidebar-text">維護 子表單</span></a></li>
           <li><a href="#" onclick="app.admin.loadAdminQuestions(this)"><i class="bi bi-ui-checks"></i> <span class="sidebar-text">設計 題目</span></a></li>
-          <li class="mt-4 border-top pt-2">
-            <a href="#" onclick="app.logout()" class="text-danger fw-bold"><i class="bi bi-box-arrow-left text-danger"></i> <span class="sidebar-text">登出系統</span></a>
-          </li>
+          <li class="mt-4 border-top pt-2"><a href="#" onclick="app.logout()" class="text-danger fw-bold"><i class="bi bi-box-arrow-left text-danger"></i> <span class="sidebar-text">登出系統</span></a></li>
         </ul>
       </nav>
 
@@ -64,7 +59,6 @@
             <h4 id="page-main-title" class="fw-bold mb-0 text-dark">系統總覽</h4>
           </div>
           <div class="d-flex align-items-center gap-2">
-            <!-- ✅ 重整按鈕 -->
             <button class="btn btn-outline-secondary btn-sm fw-bold shadow-sm" onclick="app.forceRefresh()"><i class="bi bi-arrow-clockwise"></i> 重新整理</button>
             <div class="d-flex align-items-center gap-2 bg-light px-3 py-2 rounded border d-none" id="date-range-container">
               <input type="date" id="start-date" class="form-control form-control-sm border-0 bg-transparent fw-bold text-primary" onchange="app.refreshCurrentPage()">
@@ -88,8 +82,10 @@
             </div>
             <div class="col-md-6 mb-3">
               <div class="card bg-warning text-dark shadow-sm h-100 border-0">
-                <div class="card-header border-0 fs-5"><i class="bi bi-clock-history"></i> 未填寫任務流清單</div>
-                <div class="card-body"><ul id="dash-inc-list" class="list-unstyled mb-0" style="max-height: 250px; overflow-y: auto;"></ul></div>
+                <div class="card-header border-0 fs-5"><i class="bi bi-clock-history"></i> 本日未填寫</div>
+                <div class="card-body p-2"><ul id="dash-inc-list" class="list-unstyled mb-0"></ul></div>
+                <div class="card-header border-top border-warning fs-5 mt-2"><i class="bi bi-calendar-range"></i> 週期任務 (本期未填寫)</div>
+                <div class="card-body p-2"><ul id="dash-period-list" class="list-unstyled mb-0"></ul></div>
               </div>
             </div>
           </div>
@@ -101,6 +97,11 @@
           <div class="row mb-3 px-1">
             <div class="col-md-3 col-6"><select id="cal-filter-dept" class="form-select shadow-sm border-0" onchange="app.calendar.applyFilters()"><option value="">所有單位</option></select></div>
             <div class="col-md-3 col-6"><select id="cal-filter-wf" class="form-select shadow-sm border-0" onchange="app.calendar.applyFilters()"><option value="">所有任務</option></select></div>
+          </div>
+          <!-- 週期性任務獨立看板 -->
+          <div class="card border-0 shadow-sm mb-4 bg-white" id="cal-period-board" style="display:none;">
+            <div class="card-header bg-warning text-dark border-0 fw-bold fs-5"><i class="bi bi-calendar-range"></i> 本期週期性任務看板</div>
+            <div class="card-body p-0"><div class="list-group list-group-flush" id="cal-period-list"></div></div>
           </div>
           <div class="card shadow-sm border-0 mb-4"><div class="card-body p-2 p-md-3" id="calendar-container"></div></div>
           <div id="calendar-details-container"></div>
@@ -116,8 +117,10 @@
             </div>
             <div class="col-md-6 mb-3">
               <div class="card bg-warning text-dark shadow-sm h-100 border-0">
-                <div class="card-header border-0 fs-5"><i class="bi bi-clock-history"></i> 單位未填寫任務</div>
-                <div class="card-body"><ul id="dept-inc-list" class="list-unstyled mb-0" style="max-height: 250px; overflow-y: auto;"></ul></div>
+                <div class="card-header border-0 fs-5"><i class="bi bi-clock-history"></i> 本日未填寫</div>
+                <div class="card-body p-2"><ul id="dept-inc-list" class="list-unstyled mb-0"></ul></div>
+                <div class="card-header border-top border-warning fs-5 mt-2"><i class="bi bi-calendar-range"></i> 週期任務 (本期未填寫)</div>
+                <div class="card-body p-2"><ul id="dept-period-list" class="list-unstyled mb-0"></ul></div>
               </div>
             </div>
           </div>
@@ -129,23 +132,18 @@
           <div class="d-flex gap-2 mt-4 pb-4" id="form-actions"></div>
         </div>
 
-        <!-- ✅ 後台維護 任務流 (新增 List Container 支援動態排序重繪) -->
         <div id="view-admin-workflows" class="content-view">
           <div class="alert alert-info border-0 shadow-sm"><i class="bi bi-info-circle-fill"></i> <strong>提示：</strong>這是最高層級的「任務包」。您可以在此將多個子表單打包成一個連續任務。<br>🔹 <strong>排序功能：</strong>點擊左側圖示可上下拖拉，系統會自動儲存順序。</div>
           <button class="btn btn-primary mb-3 shadow-sm fw-bold" onclick="app.admin.adminEditWorkflow(null)"><i class="bi bi-plus-lg"></i> 新增任務流</button>
           <div class="list-container"></div>
         </div>
-
-        <!-- ✅ 後台維護 子表單 -->
         <div id="view-admin-flows" class="content-view">
-          <div class="alert alert-info border-0 shadow-sm"><i class="bi bi-info-circle-fill"></i> <strong>提示：</strong>在此建立獨立的問卷表單，稍後再將表單ID綁定到「任務流」中。<br>🔹 <strong>排序功能：</strong>點擊左側圖示可上下拖拉，系統會自動儲存順序。</div>
+          <div class="alert alert-info border-0 shadow-sm"><i class="bi bi-info-circle-fill"></i> <strong>提示：</strong>在此建立獨立的問卷表單，稍後再將表單ID綁定到「任務流」中。<br>🔹 <strong>排序功能：</strong>點擊左側圖示可上下拖拉。</div>
           <button class="btn btn-info mb-3 shadow-sm fw-bold text-white" onclick="app.admin.adminEditFlow(null)"><i class="bi bi-plus-lg"></i> 新增表單</button>
           <div class="list-container"></div>
         </div>
-
-        <!-- ✅ 後台維護 題目 -->
         <div id="view-admin-questions" class="content-view">
-          <div class="alert alert-info border-0 shadow-sm"><i class="bi bi-info-circle-fill"></i> <strong>提示：</strong>依據表單ID設計對應題目。<br>🔹 <strong>排序功能：</strong>點擊左側圖示可上下拖拉，系統會自動儲存順序。</div>
+          <div class="alert alert-info border-0 shadow-sm"><i class="bi bi-info-circle-fill"></i> <strong>提示：</strong>依據表單ID設計對應題目。<br>🔹 <strong>排序功能：</strong>點擊左側圖示可上下拖拉。</div>
           <button class="btn btn-dark mb-3 shadow-sm fw-bold" onclick="app.admin.adminEditQuestion(null)"><i class="bi bi-plus-lg"></i> 新增題目</button>
           <div class="list-container"></div>
         </div>
