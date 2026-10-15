@@ -37,15 +37,17 @@ app.dashboard = {
           </li>`).join('')
       : '<li class="p-2 text-white fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 目前區間無異常！</li>';
       
-    // 本日未填寫 (例行或指定日)
+    // 區間內未填寫清單 (加入了具體日期標籤)
     document.getElementById('dash-inc-list').innerHTML = data.incompleteWorkflows.length > 0
       ? data.incompleteWorkflows.map(wf => `
         <li class="mb-2 p-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center border-start border-warning border-4">
           <div>
+            <span class="badge bg-secondary border me-1 shadow-sm"><i class="bi bi-calendar"></i> ${wf.date}</span>
             <span class="badge bg-light text-dark border">${wf.dept}</span><span class="badge bg-info text-dark border ms-1">${wf.category}</span>
-            <span class="fw-bold ms-1">${wf.name}</span>
+            <span class="fw-bold ms-1 text-dark">${wf.name}</span>
           </div>
-          <button class="btn btn-sm btn-primary fw-bold text-nowrap shadow-sm ms-2" onclick="app.department.startWorkflow('${wf.id}')">啟動</button>
+          <!-- 點擊啟動時，自動把漏填的日期 (wf.date) 帶入，變成自動補填功能 -->
+          <button class="btn btn-sm btn-primary fw-bold text-nowrap shadow-sm ms-2" onclick="app.department.startWorkflowFromCalendar('${wf.id}', '${wf.dept}', '${wf.date}')">補填</button>
         </li>`).join('')
       : '<li class="p-2 text-success fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 區間內全數例行任務填寫完畢！</li>';
 
@@ -54,10 +56,11 @@ app.dashboard = {
       ? data.incompletePeriodWorkflows.map(wf => `
         <li class="mb-2 p-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center border-start border-warning border-4">
           <div>
+            <span class="badge bg-secondary border me-1 shadow-sm"><i class="bi bi-calendar-range"></i> 本期</span>
             <span class="badge bg-light text-dark border">${wf.dept}</span><span class="badge bg-info text-dark border ms-1">${wf.category}</span>
             <span class="fw-bold ms-1">${wf.name}</span>
           </div>
-          <button class="btn btn-sm btn-primary fw-bold text-nowrap shadow-sm ms-2" onclick="app.department.startWorkflow('${wf.id}')">啟動</button>
+          <button class="btn btn-sm btn-primary fw-bold text-nowrap shadow-sm ms-2" onclick="app.department.startWorkflowFromCalendar('${wf.id}', '${wf.dept}', '${wf.date}')">啟動</button>
         </li>`).join('')
       : '<li class="p-2 text-success fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 區間內無待辦週期任務！</li>';
 
@@ -69,9 +72,14 @@ app.dashboard = {
             <span class="badge bg-light text-dark border">${wf.dept}</span><span class="badge bg-success text-white border ms-1">${wf.category}</span>
             <span class="fw-bold ms-1">${wf.name}</span>
           </div>
-          <button class="btn btn-sm btn-outline-success fw-bold text-nowrap shadow-sm ms-2" onclick="app.department.startWorkflow('${wf.id}')">進入填寫</button>
+          <button class="btn btn-sm btn-outline-success fw-bold text-nowrap shadow-sm ms-2" onclick="app.department.startWorkflowFromCalendar('${wf.id}', '${wf.dept}', '${wf.date}')">進入填寫</button>
         </li>`).join('')
       : '<li class="p-2 text-muted fw-bold">此區間無常設問卷。</li>';
+
+    // ✅ 小優化：順便把畫面上的卡片標題從「本日未填寫」改為「區間內未填寫明細」
+    try {
+      document.getElementById('dash-inc-list').previousElementSibling.innerHTML = '<i class="bi bi-clock-history"></i> 區間內未填寫明細';
+    } catch(e) {}
 
     this.loadDashboardCharts(startDate, endDate);
   },
