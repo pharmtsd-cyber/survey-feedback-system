@@ -2,85 +2,68 @@ app.admin = {
   adminDataCache: null,
 
   async fetchAdminData() {
-    if (!this.adminDataCache) {
-       this.adminDataCache = await app.api({ action: 'getAdminData' });
-    }
+    if (!this.adminDataCache) this.adminDataCache = await app.api({ action: 'getAdminData' });
     return this.adminDataCache;
   },
 
-  // ✅ 共用的模糊字串篩選器
   filterList(event, containerId) {
     const term = event.target.value.toLowerCase();
     const items = document.querySelectorAll(`#${containerId} .sortable-item`);
-    items.forEach(el => {
-      const text = el.innerText.toLowerCase();
-      el.style.display = text.includes(term) ? '' : 'none';
-    });
+    items.forEach(el => { el.style.display = el.innerText.toLowerCase().includes(term) ? '' : 'none'; });
   },
 
-  // ✅ 啟用 SortableJS 拖拉排序
   initSortable(containerId, type) {
     const container = document.getElementById(containerId);
     if (!container) return;
-    
-    const options = {
-      animation: 150,
-      handle: '.drag-handle', // 限定按住左側圖示才能拖拉
-      ghostClass: 'bg-light',
-      onEnd: () => this.saveSortOrder(type)
-    };
-
+    const options = { animation: 150, handle: '.drag-handle', ghostClass: 'bg-light', onEnd: () => this.saveSortOrder(type) };
     if (type === 'workflows') {
-       // 任務流有依單位分組，所以綁定在各自的 Group 內
-       const groups = container.querySelectorAll('.sortable-group');
-       groups.forEach(group => new Sortable(group, options));
+       container.querySelectorAll('.sortable-group').forEach(group => new Sortable(group, options));
     } else {
        new Sortable(container, options);
     }
   },
 
-  // ✅ 呼叫 API 更新排序
   async saveSortOrder(type) {
     let items;
     if(type === 'workflows') items = document.querySelectorAll('#admin-workflows-list .sortable-item');
     else if(type === 'flows') items = document.querySelectorAll('#admin-flows-list .sortable-item');
     else items = document.querySelectorAll('#admin-questions-list .sortable-item');
     
-    // 依據畫面上新的順序收集 ID
     const ids = Array.from(items).map(el => el.dataset.id);
     let sheetName = type === 'workflows' ? 'Workflows' : (type === 'flows' ? 'Flows' : 'Questions');
-    
     await app.api({ action: 'adminUpdateSort', sheetName: sheetName, idList: ids });
-    this.adminDataCache = null; // 更新排序後清除快取
+    this.adminDataCache = null; 
   },
 
-  // ---------------- 任務流 (Workflows) ----------------
+  // ✅ 動態切換排程 UI
+  toggleSchUI() {
+    let val = document.getElementById('aw-sch-type').value;
+    document.getElementById('sch-weekday-ui').style.display = (val === 'WEEKDAY') ? 'block' : 'none';
+    document.getElementById('sch-monthday-ui').style.display = (val === 'MONTHDAY') ? 'block' : 'none';
+    document.getElementById('sch-period-ui').style.display = (val === 'PERIOD') ? 'block' : 'none';
+  },
+
   async loadAdminWorkflows(menuItem) {
     if(menuItem) app.setActiveMenu(menuItem);
     app.switchView('view-admin-workflows', '維護 任務流 (Workflows)');
     const data = await this.fetchAdminData();
     
-    let html = `
-      <div class="mb-3">
-        <input type="text" class="form-control border-primary shadow-sm" placeholder="🔍 模糊搜尋 (輸入名稱、單位、分類或表單ID...)" onkeyup="app.admin.filterList(event, 'admin-workflows-list')">
-      </div>
-      <div id="admin-workflows-list">
-    `;
-    
-    // ✅ 依「所屬單位」群組化
+    let html = `<div class="mb-3"><input type="text" class="form-control border-primary shadow-sm" placeholder="🔍 模糊搜尋 (輸入名稱、單位、分類或表單ID...)" onkeyup="app.admin.filterList(event, 'admin-workflows-list')"></div><div id="admin-workflows-list">`;
     let grouped = {};
-    data.workflows.forEach(wf => {
-      if(!grouped[wf.dept]) grouped[wf.dept] = [];
-      grouped[wf.dept].push(wf);
-    });
+    data.workflows.forEach(wf => { if(!grouped[wf.dept]) grouped[wf.dept] = []; grouped[wf.dept].push(wf); });
 
     for (let dept in grouped) {
-      html += `<h5 class="fw-bold mt-4 text-primary"><i class="bi bi-building"></i> 單位：${dept || '通用/未指定'}</h5>`;
-      html += `<div class="sortable-group">`; // 拖拉區塊
+      html += `<h5 class="fw-bold mt-4 text-primary"><i class="bi bi-building"></i> 單位：${dept || '通用/未指定'}</h5><div class="sortable-group">`;
       grouped[dept].forEach(wf => {
         let badge = wf.active ? `<span class="badge bg-success">啟用中</span>` : `<span class="badge bg-secondary">已停用</span>`;
-        let scheduleBadge = wf.schedule ? `<span class="badge bg-info text-dark ms-2"><i class="bi bi-calendar-check"></i> 頻率: ${wf.schedule}</span>` : '';
-        
+        let schText = "每日";
+        if (wf.schedule.startsWith('WEEKDAY')) schText = `星期 ${wf.schedule.split(':')[1]}`;
+        else if (wf.schedule.startsWith('MONTHDAY')) schText = `每月 ${wf.schedule.split(':')[1]} 日`;
+        else if (wf.schedule.startsWith('PERIOD')) {
+           let v = wf.schedule.split(':')[1];
+           schText = v==='WEEK' ? '每週區間' : (v==='MONTH' ? '每月區間' : '每季區間');
+        }
+
         html += `
           <div class="card shadow-sm border-0 mb-2 border-start border-primary border-4 sortable-item" data-id="${wf.id}">
             <div class="card-body d-flex justify-content-between align-items-center py-2">
@@ -89,7 +72,7 @@ app.admin = {
                 <div>
                   <div class="fw-bold fs-5 text-dark">${wf.name} <small class="text-muted fs-6">(${wf.id})</small></div>
                   <small class="text-muted">分類: ${wf.category} ｜ 綁定表單: <span class="text-primary fw-bold">${wf.flowIds}</span></small>
-                  <div class="mt-1">${badge} ${scheduleBadge}</div>
+                  <div class="mt-1">${badge} <span class="badge bg-info text-dark ms-2"><i class="bi bi-calendar-check"></i> 頻率: ${schText}</span></div>
                 </div>
               </div>
               <div>
@@ -102,7 +85,6 @@ app.admin = {
       html += `</div>`;
     }
     html += `</div>`;
-    
     document.getElementById('view-admin-workflows').querySelector('.list-container').innerHTML = html;
     this.initSortable('admin-workflows-list', 'workflows');
   },
@@ -116,27 +98,74 @@ app.admin = {
     let dept = isNew ? '' : wf.dept;
     let category = isNew ? '' : wf.category;
     let flowIds = isNew ? '' : wf.flowIds;
-    let schedule = isNew ? '' : (wf.schedule || '');
     let activeChecked = (!isNew && wf.active) || isNew ? 'checked' : '';
+
+    // 解析排程字串
+    let schType = 'DAILY', schVal = '';
+    if (!isNew && wf.schedule) {
+       let p = wf.schedule.split(':');
+       schType = p[0]; schVal = p[1] || '';
+    }
+
+    let wdChecks = [1,2,3,4,5,6,7].map(d => {
+       let checked = (schType === 'WEEKDAY' && schVal.split(',').includes(String(d))) ? 'checked' : '';
+       let dName = ['一','二','三','四','五','六','日'][d-1];
+       return `<div class="form-check form-check-inline"><input class="form-check-input wd-check" type="checkbox" value="${d}" ${checked}><label class="form-check-label">W${dName}</label></div>`;
+    }).join('');
 
     document.getElementById('adminModalBody').innerHTML = `
       <input type="hidden" id="aw-id" value="${id}">
       <input type="hidden" id="aw-sort" value="${sort}">
       <div class="mb-3"><label class="form-label fw-bold">任務名稱</label><input type="text" id="aw-name" class="form-control border-primary" value="${name}"></div>
       <div class="mb-3"><label class="form-label fw-bold">所屬單位</label><input type="text" id="aw-dept" class="form-control" value="${dept}" placeholder="通用 或 填寫單位名稱"></div>
-      <div class="mb-3"><label class="form-label fw-bold">執行頻率 (時間)</label><input type="text" id="aw-schedule" class="form-control" value="${schedule}" placeholder="例如: 每季一次, 每月, W1, 假日"></div>
       <div class="mb-3"><label class="form-label fw-bold">任務分類</label><input type="text" id="aw-cat" class="form-control" value="${category}" placeholder="例如: 每日例行"></div>
+      
+      <div class="mb-3 p-3 bg-light rounded border border-info">
+        <label class="form-label fw-bold text-dark"><i class="bi bi-clock-history"></i> 執行頻率設定</label>
+        <select id="aw-sch-type" class="form-select mb-2" onchange="app.admin.toggleSchUI()">
+          <option value="DAILY" ${schType==='DAILY'?'selected':''}>每日 (預設)</option>
+          <option value="WEEKDAY" ${schType==='WEEKDAY'?'selected':''}>指定星期 (如 W1, W4)</option>
+          <option value="MONTHDAY" ${schType==='MONTHDAY'?'selected':''}>指定日期 (每月 N 號)</option>
+          <option value="PERIOD" ${schType==='PERIOD'?'selected':''}>週期區間任務 (每週/月/季一次)</option>
+        </select>
+        
+        <div id="sch-weekday-ui" style="display:none;" class="mt-2 border-top pt-2">${wdChecks}</div>
+        <div id="sch-monthday-ui" style="display:none;" class="mt-2 border-top pt-2"><label class="form-label small">輸入 1~31</label><input type="number" id="aw-md-val" class="form-control form-control-sm" value="${schType==='MONTHDAY'?schVal:''}" min="1" max="31"></div>
+        <div id="sch-period-ui" style="display:none;" class="mt-2 border-top pt-2">
+          <select id="aw-pd-val" class="form-select form-select-sm">
+            <option value="WEEK" ${(schType==='PERIOD'&&schVal==='WEEK')?'selected':''}>每週一次</option>
+            <option value="MONTH" ${(schType==='PERIOD'&&schVal==='MONTH')?'selected':''}>每月一次</option>
+            <option value="QUARTER" ${(schType==='PERIOD'&&schVal==='QUARTER')?'selected':''}>每季一次</option>
+          </select>
+        </div>
+      </div>
+
       <div class="mb-3"><label class="form-label fw-bold">包含的表單 (Flow ID)</label>
-        <input type="text" id="aw-flowids" class="form-control" value="${flowIds}" placeholder="例如: FLOW_1, FLOW_2 (用逗號分隔)">
-        <small class="text-muted">填寫子表單的 ID，系統將依照此順序連續導航填寫。</small>
+        <input type="text" id="aw-flowids" class="form-control" value="${flowIds}" placeholder="例如: FLOW_1, FLOW_2">
       </div>
       <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="aw-active" ${activeChecked}><label class="form-check-label text-dark fw-bold">啟用此任務</label></div>
     `;
+    
+    this.toggleSchUI(); // 預設執行一次以顯示對應 UI
+
     document.getElementById('adminModalSaveBtn').onclick = async () => {
+      // 組合頻率字串
+      let t = document.getElementById('aw-sch-type').value;
+      let finalSch = 'DAILY';
+      if(t === 'WEEKDAY') {
+         let wds = Array.from(document.querySelectorAll('.wd-check:checked')).map(cb => cb.value).join(',');
+         if(wds) finalSch = `WEEKDAY:${wds}`;
+      } else if (t === 'MONTHDAY') {
+         let md = document.getElementById('aw-md-val').value;
+         if(md) finalSch = `MONTHDAY:${md}`;
+      } else if (t === 'PERIOD') {
+         finalSch = `PERIOD:${document.getElementById('aw-pd-val').value}`;
+      }
+
       await app.api({ action: 'adminSaveWorkflow', data: {
         id: document.getElementById('aw-id').value, name: document.getElementById('aw-name').value, sort: document.getElementById('aw-sort').value,
         dept: document.getElementById('aw-dept').value, category: document.getElementById('aw-cat').value,
-        flowIds: document.getElementById('aw-flowids').value, schedule: document.getElementById('aw-schedule').value, active: document.getElementById('aw-active').checked
+        flowIds: document.getElementById('aw-flowids').value, schedule: finalSch, active: document.getElementById('aw-active').checked
       }});
       this.adminDataCache = null;
       bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide();
@@ -148,32 +177,18 @@ app.admin = {
   async adminDelWorkflow(id) {
     if(!confirm("確定要刪除此任務流嗎？這不會刪除子表單，只會解除綁定關係。")) return;
     await app.api({ action: 'adminDeleteWorkflow', id: id });
-    this.adminDataCache = null;
-    this.loadAdminWorkflows();
+    this.adminDataCache = null; this.loadAdminWorkflows();
   },
 
-  // ---------------- 子表單 (Flows) 維護 ----------------
   async loadAdminFlows(menuItem) {
     if(menuItem) app.setActiveMenu(menuItem);
     app.switchView('view-admin-flows', '維護 問卷表單 (Forms)');
     const data = await this.fetchAdminData();
-    
-    let html = `
-      <div class="mb-3">
-        <input type="text" class="form-control border-info shadow-sm" placeholder="🔍 模糊搜尋 (輸入名稱、備註、被綁定的任務...)" onkeyup="app.admin.filterList(event, 'admin-flows-list')">
-      </div>
-      <div id="admin-flows-list">
-    `;
+    let html = `<div class="mb-3"><input type="text" class="form-control border-info shadow-sm" placeholder="🔍 模糊搜尋 (輸入名稱、備註、被綁定的任務...)" onkeyup="app.admin.filterList(event, 'admin-flows-list')"></div><div id="admin-flows-list">`;
     
     data.flows.forEach(f => {
-      // ✅ 顯示有什麼 Workflow 用到這個表單
-      let linkedWfs = data.workflows.filter(w => {
-         let ids = w.flowIds.split(',').map(s=>s.trim());
-         return ids.includes(f.id);
-      }).map(w => w.name).join('、 ');
-
-      let badge = '';
-      let rawActive = String(f.active).toLowerCase();
+      let linkedWfs = data.workflows.filter(w => w.flowIds.split(',').map(s=>s.trim()).includes(f.id)).map(w => w.name).join('、 ');
+      let badge = ''; let rawActive = String(f.active).toLowerCase();
       if (rawActive === '正常' || rawActive === 'true') badge = `<span class="badge bg-success">正常</span>`;
       else if (rawActive === '維修中') badge = `<span class="badge bg-warning text-dark">維修中</span>`;
       else badge = `<span class="badge bg-secondary">關閉</span>`;
@@ -209,16 +224,13 @@ app.admin = {
     let name = isNew ? '' : flow.name;
     let sort = isNew ? 999 : flow.sort;
     let memo = isNew ? '' : (flow.memo || '');
-    
     let activeVal = isNew ? '正常' : String(flow.active).toLowerCase();
-    if (activeVal === 'true') activeVal = '正常';
-    if (activeVal === 'false') activeVal = '關閉';
+    if (activeVal === 'true') activeVal = '正常'; if (activeVal === 'false') activeVal = '關閉';
 
     document.getElementById('adminModalBody').innerHTML = `
-      <input type="hidden" id="af-id" value="${id}">
-      <input type="hidden" id="af-sort" value="${sort}">
-      <div class="mb-3"><label class="form-label fw-bold">表單名稱 (如: 冰水主機)</label><input type="text" id="af-name" class="form-control border-info" value="${name}"></div>
-      <div class="mb-3"><label class="form-label fw-bold">備註 (原表單分類)</label><input type="text" id="af-memo" class="form-control" value="${memo}" placeholder="內部註記用"></div>
+      <input type="hidden" id="af-id" value="${id}"><input type="hidden" id="af-sort" value="${sort}">
+      <div class="mb-3"><label class="form-label fw-bold">表單名稱</label><input type="text" id="af-name" class="form-control border-info" value="${name}"></div>
+      <div class="mb-3"><label class="form-label fw-bold">備註 (內部註記)</label><input type="text" id="af-memo" class="form-control" value="${memo}"></div>
       <div class="mb-3"><label class="form-label fw-bold">表單啟用狀態</label>
         <select id="af-active" class="form-select">
           <option value="正常" ${activeVal==='正常'?'selected':''}>🟢 正常</option>
@@ -226,44 +238,28 @@ app.admin = {
           <option value="關閉" ${activeVal==='關閉'?'selected':''}>❌ 關閉 (完全停用)</option>
         </select>
       </div>
-      <p class="mt-3 text-muted small"><i class="bi bi-info-circle"></i> 單位與執行頻率請至「任務流 (Workflows)」中設定。</p>
     `;
     document.getElementById('adminModalSaveBtn').onclick = async () => {
-      await app.api({ action: 'adminSaveFlow', data: {
-        id: document.getElementById('af-id').value, name: document.getElementById('af-name').value, sort: document.getElementById('af-sort').value,
-        dept: '通用', memo: document.getElementById('af-memo').value, active: document.getElementById('af-active').value
-      }});
-      this.adminDataCache = null;
-      bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide();
-      this.loadAdminFlows();
+      await app.api({ action: 'adminSaveFlow', data: { id: document.getElementById('af-id').value, name: document.getElementById('af-name').value, sort: document.getElementById('af-sort').value, dept: '通用', memo: document.getElementById('af-memo').value, active: document.getElementById('af-active').value }});
+      this.adminDataCache = null; bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide(); this.loadAdminFlows();
     };
     new bootstrap.Modal(document.getElementById('adminModal')).show();
   },
 
   async adminDelFlow(id) {
-    if(!confirm("確定要刪除嗎？建議先確認有無對應的題目與任務流綁定。")) return;
+    if(!confirm("確定要刪除嗎？")) return;
     await app.api({ action: 'adminDeleteFlow', id: id });
-    this.adminDataCache = null;
-    this.loadAdminFlows();
+    this.adminDataCache = null; this.loadAdminFlows();
   },
 
-  // ---------------- 題目維護 ----------------
   async loadAdminQuestions(menuItem) {
     if(menuItem) app.setActiveMenu(menuItem);
     app.switchView('view-admin-questions', '設計問卷題目');
     const data = await this.fetchAdminData();
-    
-    let html = `
-      <div class="mb-3">
-        <input type="text" class="form-control border-dark shadow-sm" placeholder="🔍 模糊搜尋 (輸入題目、選項、所屬表單...)" onkeyup="app.admin.filterList(event, 'admin-questions-list')">
-      </div>
-      <div id="admin-questions-list">
-    `;
+    let html = `<div class="mb-3"><input type="text" class="form-control border-dark shadow-sm" placeholder="🔍 模糊搜尋 (輸入題目、選項、所屬表單...)" onkeyup="app.admin.filterList(event, 'admin-questions-list')"></div><div id="admin-questions-list">`;
     
     data.questions.forEach(q => {
       let reqBadge = q.req ? `<span class="badge bg-danger ms-2">必填</span>` : '';
-      
-      // ✅ 顯示此題目屬於哪個 Flow
       let parentFlow = data.flows.find(fl => fl.id === q.flowId);
       let parentName = parentFlow ? parentFlow.name : "未知表單";
 
@@ -294,58 +290,30 @@ app.admin = {
     const isNew = !q;
     document.getElementById('adminModalTitle').innerText = isNew ? '新增題目' : '修改題目';
     let id = isNew ? `Q_${new Date().getTime()}` : q.id;
-    let flowId = isNew ? '' : q.flowId;
-    let title = isNew ? '' : q.title;
-    let type = isNew ? '單選' : q.type;
-    let opts = isNew ? '' : q.options;
-    let req = isNew ? false : q.req;
-    
-    // ✅ 補上遺漏的欄位
-    let sort = isNew ? 999 : q.sort;
+    let flowId = isNew ? '' : q.flowId; let title = isNew ? '' : q.title;
+    let type = isNew ? '單選' : q.type; let opts = isNew ? '' : q.options;
+    let req = isNew ? false : q.req; let sort = isNew ? 999 : q.sort;
     let memo = isNew ? '' : (q.memo || '');
     let min = isNew ? '' : (q.min !== null && q.min !== undefined ? q.min : '');
     let max = isNew ? '' : (q.max !== null && q.max !== undefined ? q.max : '');
 
     document.getElementById('adminModalBody').innerHTML = `
-      <input type="hidden" id="aq-id" value="${id}">
-      <input type="hidden" id="aq-sort" value="${sort}">
+      <input type="hidden" id="aq-id" value="${id}"><input type="hidden" id="aq-sort" value="${sort}">
       <div class="mb-2"><label class="form-label fw-bold">綁定表單 ID (Flow ID)</label><input type="text" id="aq-flow" class="form-control border-dark" value="${flowId}"></div>
       <div class="mb-2"><label class="form-label fw-bold">題目名稱</label><input type="text" id="aq-title" class="form-control border-primary" value="${title}"></div>
-      <div class="mb-2"><label class="form-label fw-bold">備註 (原題目分類)</label><input type="text" id="aq-memo" class="form-control" value="${memo}"></div>
-      
+      <div class="mb-2"><label class="form-label fw-bold">備註 (內部註記)</label><input type="text" id="aq-memo" class="form-control" value="${memo}"></div>
       <div class="mb-2"><label class="form-label fw-bold">題型</label>
-        <select id="aq-type" class="form-select">
-          <option ${type==='單選'?'selected':''}>單選</option><option ${type==='多選'?'selected':''}>多選</option>
-          <option ${type==='數字'?'selected':''}>數字</option><option ${type==='溫度'?'selected':''}>溫度</option>
-          <option ${type==='照片'?'selected':''}>照片</option>
-        </select>
+        <select id="aq-type" class="form-select"><option ${type==='單選'?'selected':''}>單選</option><option ${type==='多選'?'selected':''}>多選</option><option ${type==='數字'?'selected':''}>數字</option><option ${type==='溫度'?'selected':''}>溫度</option><option ${type==='照片'?'selected':''}>照片</option></select>
       </div>
       <div class="mb-2"><label class="form-label fw-bold">選項 (用逗號分隔)</label><input type="text" id="aq-opt" class="form-control" value="${opts}"></div>
-      
-      <div class="row mb-3">
-        <div class="col-6"><label class="form-label fw-bold">正常值下限 <small class="text-muted">(數字/溫度專用)</small></label><input type="number" step="any" id="aq-min" class="form-control" value="${min}"></div>
-        <div class="col-6"><label class="form-label fw-bold">正常值上限 <small class="text-muted">(數字/溫度專用)</small></label><input type="number" step="any" id="aq-max" class="form-control" value="${max}"></div>
-      </div>
-      
+      <div class="row mb-3"><div class="col-6"><label class="form-label fw-bold">正常值下限</label><input type="number" step="any" id="aq-min" class="form-control" value="${min}"></div><div class="col-6"><label class="form-label fw-bold">正常值上限</label><input type="number" step="any" id="aq-max" class="form-control" value="${max}"></div></div>
       <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="aq-req" ${req?'checked':''}><label class="form-check-label fw-bold text-danger">必填項目</label></div>
     `;
     document.getElementById('adminModalSaveBtn').onclick = async () => {
-      await app.api({ action: 'adminSaveQuestion', data: {
-        id: document.getElementById('aq-id').value, flowId: document.getElementById('aq-flow').value, sort: document.getElementById('aq-sort').value,
-        title: document.getElementById('aq-title').value, type: document.getElementById('aq-type').value, memo: document.getElementById('aq-memo').value,
-        options: document.getElementById('aq-opt').value, min: document.getElementById('aq-min').value, max: document.getElementById('aq-max').value, req: document.getElementById('aq-req').checked
-      }});
-      this.adminDataCache = null;
-      bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide();
-      this.loadAdminQuestions();
+      await app.api({ action: 'adminSaveQuestion', data: { id: document.getElementById('aq-id').value, flowId: document.getElementById('aq-flow').value, sort: document.getElementById('aq-sort').value, title: document.getElementById('aq-title').value, type: document.getElementById('aq-type').value, memo: document.getElementById('aq-memo').value, options: document.getElementById('aq-opt').value, min: document.getElementById('aq-min').value, max: document.getElementById('aq-max').value, req: document.getElementById('aq-req').checked }});
+      this.adminDataCache = null; bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide(); this.loadAdminQuestions();
     };
     new bootstrap.Modal(document.getElementById('adminModal')).show();
   },
-
-  async adminDelQuestion(id) {
-    if(!confirm("確定刪除此題目嗎？")) return;
-    await app.api({ action: 'adminDeleteQuestion', id: id });
-    this.adminDataCache = null;
-    this.loadAdminQuestions();
-  }
+  async adminDelQuestion(id) { if(!confirm("確定刪除嗎？")) return; await app.api({ action: 'adminDeleteQuestion', id: id }); this.adminDataCache = null; this.loadAdminQuestions(); }
 };
