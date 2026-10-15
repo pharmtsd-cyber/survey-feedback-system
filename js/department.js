@@ -367,44 +367,42 @@ app.department = {
        formStatus: formStatus
     };
     
-    // 清空前端快取
+    // 清空前端快取，確保跳轉後重新抓資料
     app.cache.dashboard = {}; app.cache.deptFlows = {}; app.cache.calendar = {};
 
-    // ----------------------------------------------------
-    // ✅ 樂觀模式核心邏輯開始
-    // ----------------------------------------------------
     const isWorkflow = app.currentWorkflow !== null;
-    let savedWf = null;
-    let savedIndex = null;
+    const isLastStep = isWorkflow ? (app.currentWorkflow.currentIndex >= app.currentWorkflow.flows.length - 1) : true;
 
-    if (isWorkflow) {
-        savedWf = app.currentWorkflow;
-        savedIndex = app.currentWorkflow.currentIndex;
-    }
+    if (isLastStep) {
+        // ✅【最後一關 或 單一表單】：回歸正常等待模式，確保 Google Sheets 存好資料才跳轉
+        app.showLoading(true);
+        app.api(payload).then(res => {
+            app.showLoading(false);
+            if (res.exceptionTriggered && formStatus !== '維修中') alert("儲存成功！注意：有異常數值，已通報處理。");
+            else alert(isWorkflow ? "✅ 任務流全數填寫完畢！" : "儲存成功！");
+            
+            // 存檔確實完成後，才返回清單重繪畫面
+            app.department.goBack();
+        }).catch(err => {
+            app.showLoading(false);
+            alert("系統錯誤，存檔失敗: " + err.message);
+        });
 
-    // 1. 發送背景 API (傳入 true 代表不轉圈圈、不阻塞畫面)
-    app.api(payload, true).then(res => {
-        // 背景存檔成功後，默默將 recordId 補回記憶體，這樣如果使用者按「上一頁」就能抓到編輯紀錄
-        if (savedWf) {
-            savedWf.flows[savedIndex].records = [{ recordId: res.recordId }];
-        }
-        // 如果有異常數值，在背景跳出一個輕量提示
-        if (res.exceptionTriggered && formStatus !== '維修中') {
-            alert("⚠️ 系統提示：您剛送出的表單包含異常數值，已記錄。");
-        }
-    }).catch(err => console.error("背景儲存失敗", err));
-
-    // 2. 畫面立即推進 (無需等待上方的 API 回應)
-    if (isWorkflow) {
-        app.currentWorkflow.currentIndex++;
-        if (app.currentWorkflow.currentIndex < app.currentWorkflow.flows.length) {
-            this.openWorkflowStep(); 
-        } else {
-            alert("✅ 任務流全數填寫完畢！");
-            this.goBack();
-        }
     } else {
-        this.goBack();
+        // ✅【連續任務的中間關卡】：啟動樂觀模式，背景默默存檔，畫面瞬間切換下一題
+        let savedWf = app.currentWorkflow;
+        let savedIndex = app.currentWorkflow.currentIndex;
+        
+        app.api(payload, true).then(res => {
+            savedWf.flows[savedIndex].records = [{ recordId: res.recordId }];
+            if (res.exceptionTriggered && formStatus !== '維修中') {
+                alert("⚠️ 系統提示：剛剛送出的表單包含異常數值，已記錄。");
+            }
+        }).catch(err => console.error("背景儲存失敗", err));
+
+        // 無需等待 API 回應，直接推進畫面
+        app.currentWorkflow.currentIndex++;
+        this.openWorkflowStep(); 
     }
   }
 };
