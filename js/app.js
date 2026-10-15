@@ -33,12 +33,65 @@ window.app = {
     }
   },
 
-  forceRefresh() {
+  async forceRefresh() {
+    // 1. 清空所有快取
     this.cache = { dashboard: {}, deptFlows: {}, calendar: {}, questions: {} };
-    // 如果是在後台，強制清空後台快取
     if (app.admin) app.admin.adminDataCache = null;
+
+    // 2. 徹底銷毀第三方套件實例 (行事曆、圖表)，確保強制重新渲染
+    if (app.calendar && app.calendar.instance) {
+      app.calendar.instance.destroy();
+      app.calendar.instance = null;
+    }
+    if (app.dashboard && app.dashboard.charts) {
+      for(let qId in app.dashboard.charts) {
+         app.dashboard.charts[qId].destroy();
+      }
+      app.dashboard.charts = {};
+    }
+
+    // 3. 清空所有分頁的 DOM 容器，避免畫面殘留舊資料
+    const containers = [
+      'dash-exc-list', 'dash-inc-list', 'dash-period-list', 'dash-ondemand-list', 'dash-charts',
+      'calendar-container', 'calendar-details-container',
+      'dept-exc-list', 'dept-inc-list', 'dept-period-list', 'dept-ondemand-list', 'dept-accordion-container',
+      'form-container', 'form-actions'
+    ];
+    containers.forEach(id => {
+      let el = document.getElementById(id);
+      if (el) el.innerHTML = '';
+    });
+    
+    // 清空後台列表
+    document.querySelectorAll('.list-container').forEach(el => el.innerHTML = '');
+
+    // 4. 背景靜默重新登入，更新使用者最新權限與左側單位選單
+    if(this.user && this.user.empId) {
+       try {
+         let freshUser = await this.api({ action: 'login', empId: this.user.empId });
+         this.user.availableDepts = freshUser.availableDepts;
+         let menuHtml = '';
+         this.user.availableDepts.forEach(d => {
+           menuHtml += `<li><a onclick="app.department.loadDeptFlows('${d}', this)"><i class="bi bi-caret-right"></i> <span class="sidebar-text">${d}</span></a></li>`;
+         });
+         document.getElementById('dept-menu-container').innerHTML = menuHtml;
+       } catch(e) { 
+         console.error("權限更新失敗", e); 
+       }
+    }
+
+    // 5. 重新載入當前畫面
     this.refreshCurrentPage();
   },
+
+  refreshCurrentPage() {
+    if(document.getElementById('view-dashboard').classList.contains('active')) app.dashboard.loadDashboard();
+    else if(document.getElementById('view-dept-flows').classList.contains('active')) app.department.loadDeptFlows(app.currentDept);
+    else if(document.getElementById('view-calendar').classList.contains('active')) app.calendar.loadCalendar();
+    else if(document.getElementById('view-admin-workflows').classList.contains('active')) app.admin.loadAdminWorkflows();
+    else if(document.getElementById('view-admin-flows').classList.contains('active')) app.admin.loadAdminFlows();
+    else if(document.getElementById('view-admin-questions').classList.contains('active')) app.admin.loadAdminQuestions();
+  }
 
   toggleSidebar() { 
     const sidebar = document.getElementById('sidebar');
@@ -105,15 +158,5 @@ window.app = {
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('sidebar').classList.remove('collapsed');
   },
-
-  refreshCurrentPage() {
-    if(document.getElementById('view-dashboard').classList.contains('active')) app.dashboard.loadDashboard();
-    else if(document.getElementById('view-dept-flows').classList.contains('active')) app.department.loadDeptFlows(app.currentDept);
-    else if(document.getElementById('view-calendar').classList.contains('active')) app.calendar.loadCalendar();
-    // ✅ 補上後台分頁的重整路由
-    else if(document.getElementById('view-admin-workflows').classList.contains('active')) app.admin.loadAdminWorkflows();
-    else if(document.getElementById('view-admin-flows').classList.contains('active')) app.admin.loadAdminFlows();
-    else if(document.getElementById('view-admin-questions').classList.contains('active')) app.admin.loadAdminQuestions();
-  }
 };
 window.onload = () => app.init();
