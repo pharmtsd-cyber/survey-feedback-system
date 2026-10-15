@@ -8,31 +8,32 @@ window.app = {
     const twTime = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
     const tY = twTime.getFullYear(); const tM = twTime.getMonth(); const tD = twTime.getDate();
     const todayStr = `${tY}-${String(tM + 1).padStart(2, '0')}-${String(tD).padStart(2, '0')}`;
-    const lastMonth = new Date(tY, tM - 1, 1);
-    const startStr = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}-01`;
 
-    document.getElementById('start-date').value = startStr;
+    // ✅ 修改：將系統總覽的預設起迄時間都改為「今天」
+    document.getElementById('start-date').value = todayStr;
     document.getElementById('end-date').value = todayStr;
     document.getElementById('target-date').value = todayStr;
+
+    // ✅ 修復 F12 警告：當 Modal 準備關閉時，強制移除按鈕的焦點
+    const adminModalEl = document.getElementById('adminModal');
+    if (adminModalEl) {
+      adminModalEl.addEventListener('hide.bs.modal', () => {
+        if (document.activeElement) document.activeElement.blur();
+      });
+    }
   },
 
   showLoading(show) { document.getElementById('loading').style.display = show ? 'flex' : 'none'; },
 
-// ✅ 強化版 API 呼叫：加入 headers 與 redirect 設定，專門應付 GAS 的 CORS 問題
   async api(payload, background = false) {
     if (!background) this.showLoading(true);
     try {
       const res = await fetch(GAS_API, {
         method: 'POST',
-        // 強制為 text/plain 避免觸發瀏覽器的 OPTIONS 預檢請求
-        headers: {
-          'Content-Type': 'text/plain;charset=utf-8',
-        },
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload),
-        // 允許跟隨 Google 伺服器的 302 重新導向
         redirect: 'follow'
       });
-      
       const data = await res.json();
       if (!background) this.showLoading(false);
       if (!data.success) throw new Error(data.error);
@@ -40,7 +41,6 @@ window.app = {
     } catch (e) {
       if (!background) {
          this.showLoading(false);
-         // 報錯文字優化，讓使用者知道可能是網路或發布問題
          alert("系統連線錯誤: 請確認網路狀態或後端是否正確發布。(" + e.message + ")");
       } else {
          console.error("背景傳輸失敗:", e); 
@@ -49,13 +49,10 @@ window.app = {
     }
   },
 
-  // ✅ 強制更新：清空快取、銷毀舊圖表與 HTML 容器，並重新讀取資料
   async forceRefresh() {
-    // 1. 清空所有快取
     this.cache = { dashboard: {}, deptFlows: {}, calendar: {}, questions: {} };
     if (app.admin) app.admin.adminDataCache = null;
 
-    // 2. 徹底銷毀第三方套件實例
     if (app.calendar && app.calendar.instance) {
       app.calendar.instance.destroy();
       app.calendar.instance = null;
@@ -67,7 +64,6 @@ window.app = {
       app.dashboard.charts = {};
     }
 
-    // 3. 清空所有分頁的 DOM 容器
     const containers = [
       'dash-exc-list', 'dash-inc-list', 'dash-period-list', 'dash-ondemand-list', 'dash-charts',
       'calendar-container', 'calendar-details-container',
@@ -81,7 +77,6 @@ window.app = {
     
     document.querySelectorAll('.list-container').forEach(el => el.innerHTML = '');
 
-    // 4. 背景靜默重新拉取權限與單位清單
     if(this.user && this.user.empId) {
        try {
          let freshUser = await this.api({ action: 'login', empId: this.user.empId });
@@ -96,7 +91,6 @@ window.app = {
        }
     }
 
-    // 5. 重新載入當前畫面
     this.refreshCurrentPage();
   },
 
