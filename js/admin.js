@@ -93,18 +93,13 @@ app.admin = {
     const isNew = !wf;
     document.getElementById('adminModalTitle').innerText = isNew ? '新增任務流' : '修改任務流';
     let id = isNew ? `WF_${new Date().getTime()}` : wf.id;
-    let sort = isNew ? 999 : wf.sort;
-    let name = isNew ? '' : wf.name;
-    let dept = isNew ? '' : wf.dept;
-    let category = isNew ? '' : wf.category;
-    let flowIds = isNew ? '' : wf.flowIds;
-    let activeChecked = (!isNew && wf.active) || isNew ? 'checked' : '';
+    let sort = isNew ? 999 : wf.sort; let name = isNew ? '' : wf.name;
+    let dept = isNew ? '' : wf.dept; let category = isNew ? '' : wf.category;
+    let flowIds = isNew ? '' : wf.flowIds; let activeChecked = (!isNew && wf.active) || isNew ? 'checked' : '';
 
-    // 解析排程字串
     let schType = 'DAILY', schVal = '';
     if (!isNew && wf.schedule) {
-       let p = wf.schedule.split(':');
-       schType = p[0]; schVal = p[1] || '';
+       let p = wf.schedule.split(':'); schType = p[0]; schVal = p[1] || '';
     }
 
     let wdChecks = [1,2,3,4,5,6,7].map(d => {
@@ -114,19 +109,19 @@ app.admin = {
     }).join('');
 
     document.getElementById('adminModalBody').innerHTML = `
-      <input type="hidden" id="aw-id" value="${id}">
-      <input type="hidden" id="aw-sort" value="${sort}">
+      <input type="hidden" id="aw-id" value="${id}"><input type="hidden" id="aw-sort" value="${sort}">
       <div class="mb-3"><label class="form-label fw-bold">任務名稱</label><input type="text" id="aw-name" class="form-control border-primary" value="${name}"></div>
-      <div class="mb-3"><label class="form-label fw-bold">所屬單位</label><input type="text" id="aw-dept" class="form-control" value="${dept}" placeholder="通用 或 填寫單位名稱"></div>
-      <div class="mb-3"><label class="form-label fw-bold">任務分類</label><input type="text" id="aw-cat" class="form-control" value="${category}" placeholder="例如: 每日例行"></div>
+      <div class="mb-3"><label class="form-label fw-bold">所屬單位</label><input type="text" id="aw-dept" class="form-control" value="${dept}"></div>
+      <div class="mb-3"><label class="form-label fw-bold">任務分類</label><input type="text" id="aw-cat" class="form-control" value="${category}"></div>
       
       <div class="mb-3 p-3 bg-light rounded border border-info">
         <label class="form-label fw-bold text-dark"><i class="bi bi-clock-history"></i> 執行頻率設定</label>
         <select id="aw-sch-type" class="form-select mb-2" onchange="app.admin.toggleSchUI()">
-          <option value="DAILY" ${schType==='DAILY'?'selected':''}>每日 (預設)</option>
+          <option value="DAILY" ${schType==='DAILY'?'selected':''}>每日例行</option>
           <option value="WEEKDAY" ${schType==='WEEKDAY'?'selected':''}>指定星期 (如 W1, W4)</option>
           <option value="MONTHDAY" ${schType==='MONTHDAY'?'selected':''}>指定日期 (每月 N 號)</option>
           <option value="PERIOD" ${schType==='PERIOD'?'selected':''}>週期區間任務 (每週/月/季一次)</option>
+          <option value="ONDEMAND" ${schType==='ONDEMAND'?'selected':''}>🟢 隨時可填 (不限期、無催繳通知)</option>
         </select>
         
         <div id="sch-weekday-ui" style="display:none;" class="mt-2 border-top pt-2">${wdChecks}</div>
@@ -140,36 +135,23 @@ app.admin = {
         </div>
       </div>
 
-      <div class="mb-3"><label class="form-label fw-bold">包含的表單 (Flow ID)</label>
-        <input type="text" id="aw-flowids" class="form-control" value="${flowIds}" placeholder="例如: FLOW_1, FLOW_2">
-      </div>
+      <div class="mb-3"><label class="form-label fw-bold">包含的表單 (Flow ID)</label><input type="text" id="aw-flowids" class="form-control" value="${flowIds}"></div>
       <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="aw-active" ${activeChecked}><label class="form-check-label text-dark fw-bold">啟用此任務</label></div>
     `;
-    
-    this.toggleSchUI(); // 預設執行一次以顯示對應 UI
+    this.toggleSchUI(); 
 
     document.getElementById('adminModalSaveBtn').onclick = async () => {
-      // 組合頻率字串
-      let t = document.getElementById('aw-sch-type').value;
-      let finalSch = 'DAILY';
+      let t = document.getElementById('aw-sch-type').value; let finalSch = 'DAILY';
       if(t === 'WEEKDAY') {
          let wds = Array.from(document.querySelectorAll('.wd-check:checked')).map(cb => cb.value).join(',');
          if(wds) finalSch = `WEEKDAY:${wds}`;
       } else if (t === 'MONTHDAY') {
-         let md = document.getElementById('aw-md-val').value;
-         if(md) finalSch = `MONTHDAY:${md}`;
-      } else if (t === 'PERIOD') {
-         finalSch = `PERIOD:${document.getElementById('aw-pd-val').value}`;
-      }
+         let md = document.getElementById('aw-md-val').value; if(md) finalSch = `MONTHDAY:${md}`;
+      } else if (t === 'PERIOD') finalSch = `PERIOD:${document.getElementById('aw-pd-val').value}`;
+      else if (t === 'ONDEMAND') finalSch = 'ONDEMAND'; // ✅ 存入資料庫
 
-      await app.api({ action: 'adminSaveWorkflow', data: {
-        id: document.getElementById('aw-id').value, name: document.getElementById('aw-name').value, sort: document.getElementById('aw-sort').value,
-        dept: document.getElementById('aw-dept').value, category: document.getElementById('aw-cat').value,
-        flowIds: document.getElementById('aw-flowids').value, schedule: finalSch, active: document.getElementById('aw-active').checked
-      }});
-      this.adminDataCache = null;
-      bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide();
-      this.loadAdminWorkflows();
+      await app.api({ action: 'adminSaveWorkflow', data: { id: document.getElementById('aw-id').value, name: document.getElementById('aw-name').value, sort: document.getElementById('aw-sort').value, dept: document.getElementById('aw-dept').value, category: document.getElementById('aw-cat').value, flowIds: document.getElementById('aw-flowids').value, schedule: finalSch, active: document.getElementById('aw-active').checked }});
+      this.adminDataCache = null; bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide(); this.loadAdminWorkflows();
     };
     new bootstrap.Modal(document.getElementById('adminModal')).show();
   },
