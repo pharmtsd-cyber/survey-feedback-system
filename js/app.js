@@ -18,10 +18,21 @@ window.app = {
 
   showLoading(show) { document.getElementById('loading').style.display = show ? 'flex' : 'none'; },
 
+// ✅ 強化版 API 呼叫：加入 headers 與 redirect 設定，專門應付 GAS 的 CORS 問題
   async api(payload, background = false) {
     if (!background) this.showLoading(true);
     try {
-      const res = await fetch(GAS_API, { method: 'POST', body: JSON.stringify(payload) });
+      const res = await fetch(GAS_API, {
+        method: 'POST',
+        // 強制為 text/plain 避免觸發瀏覽器的 OPTIONS 預檢請求
+        headers: {
+          'Content-Type': 'text/plain;charset=utf-8',
+        },
+        body: JSON.stringify(payload),
+        // 允許跟隨 Google 伺服器的 302 重新導向
+        redirect: 'follow'
+      });
+      
       const data = await res.json();
       if (!background) this.showLoading(false);
       if (!data.success) throw new Error(data.error);
@@ -29,9 +40,10 @@ window.app = {
     } catch (e) {
       if (!background) {
          this.showLoading(false);
-         alert("系統錯誤: " + e.message);
+         // 報錯文字優化，讓使用者知道可能是網路或發布問題
+         alert("系統連線錯誤: 請確認網路狀態或後端是否正確發布。(" + e.message + ")");
       } else {
-         console.error("背景傳輸失敗:", e); // 背景失敗時只在控制台報錯，不打斷使用者
+         console.error("背景傳輸失敗:", e); 
       }
       throw e;
     }
