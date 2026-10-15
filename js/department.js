@@ -367,13 +367,35 @@ app.department = {
        formStatus: formStatus
     };
     
-    const res = await app.api(payload);
+    // 清空前端快取
     app.cache.dashboard = {}; app.cache.deptFlows = {}; app.cache.calendar = {};
 
-    if (app.currentWorkflow) {
-        app.currentWorkflow.flows[app.currentWorkflow.currentIndex].records = [{ recordId: res.recordId }];
-        if (res.exceptionTriggered && formStatus !== '維修中') alert("本步驟儲存成功！注意：有異常數值，已通報處理。");
-        
+    // ----------------------------------------------------
+    // ✅ 樂觀模式核心邏輯開始
+    // ----------------------------------------------------
+    const isWorkflow = app.currentWorkflow !== null;
+    let savedWf = null;
+    let savedIndex = null;
+
+    if (isWorkflow) {
+        savedWf = app.currentWorkflow;
+        savedIndex = app.currentWorkflow.currentIndex;
+    }
+
+    // 1. 發送背景 API (傳入 true 代表不轉圈圈、不阻塞畫面)
+    app.api(payload, true).then(res => {
+        // 背景存檔成功後，默默將 recordId 補回記憶體，這樣如果使用者按「上一頁」就能抓到編輯紀錄
+        if (savedWf) {
+            savedWf.flows[savedIndex].records = [{ recordId: res.recordId }];
+        }
+        // 如果有異常數值，在背景跳出一個輕量提示
+        if (res.exceptionTriggered && formStatus !== '維修中') {
+            alert("⚠️ 系統提示：您剛送出的表單包含異常數值，已記錄。");
+        }
+    }).catch(err => console.error("背景儲存失敗", err));
+
+    // 2. 畫面立即推進 (無需等待上方的 API 回應)
+    if (isWorkflow) {
         app.currentWorkflow.currentIndex++;
         if (app.currentWorkflow.currentIndex < app.currentWorkflow.flows.length) {
             this.openWorkflowStep(); 
@@ -382,8 +404,6 @@ app.department = {
             this.goBack();
         }
     } else {
-        if (res.exceptionTriggered && formStatus !== '維修中') alert("儲存成功！注意：有異常數值，已通報處理。");
-        else alert("儲存成功！");
         this.goBack();
     }
   }
