@@ -35,6 +35,8 @@ window.app = {
 
   forceRefresh() {
     this.cache = { dashboard: {}, deptFlows: {}, calendar: {}, questions: {} };
+    // 如果是在後台，強制清空後台快取
+    if (app.admin) app.admin.adminDataCache = null;
     this.refreshCurrentPage();
   },
 
@@ -104,10 +106,14 @@ window.app = {
     document.getElementById('sidebar').classList.remove('collapsed');
   },
 
-    refreshCurrentPage() {
+  refreshCurrentPage() {
     if(document.getElementById('view-dashboard').classList.contains('active')) app.dashboard.loadDashboard();
     else if(document.getElementById('view-dept-flows').classList.contains('active')) app.department.loadDeptFlows(app.currentDept);
     else if(document.getElementById('view-calendar').classList.contains('active')) app.calendar.loadCalendar();
+    // ✅ 補上後台分頁的重整路由
+    else if(document.getElementById('view-admin-workflows').classList.contains('active')) app.admin.loadAdminWorkflows();
+    else if(document.getElementById('view-admin-flows').classList.contains('active')) app.admin.loadAdminFlows();
+    else if(document.getElementById('view-admin-questions').classList.contains('active')) app.admin.loadAdminQuestions();
   }
 };
 window.onload = () => app.init();
