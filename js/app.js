@@ -33,12 +33,13 @@ window.app = {
     }
   },
 
+  // ✅ 強制更新：清空快取、銷毀舊圖表與 HTML 容器，並重新讀取資料
   async forceRefresh() {
     // 1. 清空所有快取
     this.cache = { dashboard: {}, deptFlows: {}, calendar: {}, questions: {} };
     if (app.admin) app.admin.adminDataCache = null;
 
-    // 2. 徹底銷毀第三方套件實例 (行事曆、圖表)，確保強制重新渲染
+    // 2. 徹底銷毀第三方套件實例
     if (app.calendar && app.calendar.instance) {
       app.calendar.instance.destroy();
       app.calendar.instance = null;
@@ -50,7 +51,7 @@ window.app = {
       app.dashboard.charts = {};
     }
 
-    // 3. 清空所有分頁的 DOM 容器，避免畫面殘留舊資料
+    // 3. 清空所有分頁的 DOM 容器
     const containers = [
       'dash-exc-list', 'dash-inc-list', 'dash-period-list', 'dash-ondemand-list', 'dash-charts',
       'calendar-container', 'calendar-details-container',
@@ -62,10 +63,9 @@ window.app = {
       if (el) el.innerHTML = '';
     });
     
-    // 清空後台列表
     document.querySelectorAll('.list-container').forEach(el => el.innerHTML = '');
 
-    // 4. 背景靜默重新登入，更新使用者最新權限與左側單位選單
+    // 4. 背景靜默重新拉取權限與單位清單
     if(this.user && this.user.empId) {
        try {
          let freshUser = await this.api({ action: 'login', empId: this.user.empId });
@@ -83,15 +83,6 @@ window.app = {
     // 5. 重新載入當前畫面
     this.refreshCurrentPage();
   },
-
-  refreshCurrentPage() {
-    if(document.getElementById('view-dashboard').classList.contains('active')) app.dashboard.loadDashboard();
-    else if(document.getElementById('view-dept-flows').classList.contains('active')) app.department.loadDeptFlows(app.currentDept);
-    else if(document.getElementById('view-calendar').classList.contains('active')) app.calendar.loadCalendar();
-    else if(document.getElementById('view-admin-workflows').classList.contains('active')) app.admin.loadAdminWorkflows();
-    else if(document.getElementById('view-admin-flows').classList.contains('active')) app.admin.loadAdminFlows();
-    else if(document.getElementById('view-admin-questions').classList.contains('active')) app.admin.loadAdminQuestions();
-  }
 
   toggleSidebar() { 
     const sidebar = document.getElementById('sidebar');
@@ -146,10 +137,11 @@ window.app = {
     app.dashboard.loadDashboard(document.querySelector('#sidebar ul li a'));
   },
 
-    logout() {
+  logout() {
     if(!confirm("確定要登出嗎？")) return;
     this.user = null; this.currentDept = '';
     this.cache = { dashboard: {}, deptFlows: {}, calendar: {}, questions: {} };
+    if (app.admin) app.admin.adminDataCache = null;
     document.getElementById('login-emp-id').value = '';
     
     document.getElementById('main-system').style.display = 'none';
@@ -158,5 +150,15 @@ window.app = {
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('sidebar').classList.remove('collapsed');
   },
+
+  refreshCurrentPage() {
+    if(document.getElementById('view-dashboard').classList.contains('active')) app.dashboard.loadDashboard();
+    else if(document.getElementById('view-dept-flows').classList.contains('active')) app.department.loadDeptFlows(app.currentDept);
+    else if(document.getElementById('view-calendar').classList.contains('active')) app.calendar.loadCalendar();
+    else if(document.getElementById('view-admin-workflows').classList.contains('active')) app.admin.loadAdminWorkflows();
+    else if(document.getElementById('view-admin-flows').classList.contains('active')) app.admin.loadAdminFlows();
+    else if(document.getElementById('view-admin-questions').classList.contains('active')) app.admin.loadAdminQuestions();
+  }
 };
+
 window.onload = () => app.init();
