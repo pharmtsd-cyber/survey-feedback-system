@@ -23,6 +23,7 @@ app.dashboard = {
     });
     const uniqueExcs = Object.values(groupedExcs);
     
+    // 異常清單
     document.getElementById('dash-exc-count').innerText = data.exceptionCount;
     document.getElementById('dash-exc-list').innerHTML = uniqueExcs.length > 0 
       ? uniqueExcs.map(e => `
@@ -36,7 +37,7 @@ app.dashboard = {
           </li>`).join('')
       : '<li class="p-2 text-white fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 目前區間無異常！</li>';
       
-    // 本日未填寫
+    // 本日未填寫 (例行或指定日)
     document.getElementById('dash-inc-list').innerHTML = data.incompleteWorkflows.length > 0
       ? data.incompleteWorkflows.map(wf => `
         <li class="mb-2 p-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center border-start border-warning border-4">
@@ -48,7 +49,7 @@ app.dashboard = {
         </li>`).join('')
       : '<li class="p-2 text-success fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 區間內全數例行任務填寫完畢！</li>';
 
-    // 週期未填寫
+    // 週期未填寫 (週/月/季)
     document.getElementById('dash-period-list').innerHTML = (data.incompletePeriodWorkflows && data.incompletePeriodWorkflows.length > 0)
       ? data.incompletePeriodWorkflows.map(wf => `
         <li class="mb-2 p-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center border-start border-warning border-4">
@@ -59,6 +60,18 @@ app.dashboard = {
           <button class="btn btn-sm btn-primary fw-bold text-nowrap shadow-sm ms-2" onclick="app.department.startWorkflow('${wf.id}')">啟動</button>
         </li>`).join('')
       : '<li class="p-2 text-success fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 區間內無待辦週期任務！</li>';
+
+    // 隨時可填 (On-Demand)
+    document.getElementById('dash-ondemand-list').innerHTML = (data.ondemandWorkflows && data.ondemandWorkflows.length > 0)
+      ? data.ondemandWorkflows.map(wf => `
+        <li class="mb-2 p-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center border-start border-success border-4">
+          <div>
+            <span class="badge bg-light text-dark border">${wf.dept}</span><span class="badge bg-success text-white border ms-1">${wf.category}</span>
+            <span class="fw-bold ms-1">${wf.name}</span>
+          </div>
+          <button class="btn btn-sm btn-outline-success fw-bold text-nowrap shadow-sm ms-2" onclick="app.department.startWorkflow('${wf.id}')">進入填寫</button>
+        </li>`).join('')
+      : '<li class="p-2 text-muted fw-bold">此區間無常設問卷。</li>';
 
     this.loadDashboardCharts(startDate, endDate);
   },
@@ -76,18 +89,24 @@ app.dashboard = {
     const container = document.getElementById('dash-charts');
     for(let qId in this.charts) { this.charts[qId].destroy(); }
     this.charts = {};
-    if(Object.keys(data).length === 0) { container.innerHTML = '<div class="col-12"><p class="text-muted">指定區間內無溫度紀錄資料。</p></div>'; return; }
+
+    if(Object.keys(data).length === 0) {
+      container.innerHTML = '<div class="col-12"><p class="text-muted">指定區間內無溫度紀錄資料。</p></div>';
+      return;
+    }
 
     let html = '';
     for(let qId in data) html += `<div class="col-md-6 col-12 mb-4"><div class="card shadow-sm border-0"><div class="card-body"><canvas id="dash-chart-${qId}"></canvas></div></div></div>`;
     container.innerHTML = html; 
+
     setTimeout(() => {
       for(let qId in data) {
         let canvas = document.getElementById(`dash-chart-${qId}`);
         if(canvas) {
           let ctx = canvas.getContext('2d');
           this.charts[qId] = new Chart(ctx, {
-            type: 'line', data: { labels: data[qId].data.map(d => d.time), datasets: [{ label: data[qId].title, data: data[qId].data.map(d => d.value), borderColor: '#0d6efd', backgroundColor: 'rgba(13, 110, 253, 0.1)', fill: true, tension: 0.3 }] },
+            type: 'line',
+            data: { labels: data[qId].data.map(d => d.time), datasets: [{ label: data[qId].title, data: data[qId].data.map(d => d.value), borderColor: '#0d6efd', backgroundColor: 'rgba(13, 110, 253, 0.1)', fill: true, tension: 0.3 }] },
             options: { responsive: true, plugins: { legend: { position: 'top' } } }
           });
         }
