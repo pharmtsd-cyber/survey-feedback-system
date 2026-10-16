@@ -1,5 +1,4 @@
 app.department = {
-
   async loadDeptFlows(dept, menuItem = null) {
     if(menuItem) app.setActiveMenu(menuItem);
     app.currentDept = dept;
@@ -36,7 +35,7 @@ app.department = {
           </li>`).join('')
       : '<li class="p-2 text-white fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 目前無異常！</li>';
 
-    // ✅ 寫入數字標籤
+    // 寫入數字標籤
     document.getElementById('dept-inc-count').innerText = res.incompleteList.length;
     document.getElementById('dept-period-count').innerText = res.incompletePeriodList ? res.incompletePeriodList.length : 0;
     document.getElementById('dept-ondemand-count').innerText = res.ondemandList ? res.ondemandList.length : 0;
@@ -59,7 +58,7 @@ app.department = {
         </li>`).join('')
       : '<li class="p-2 text-success fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 本期無待辦週期任務！</li>';
 
-    // 隨時可填 (On-Demand)
+    // 隨時可填
     document.getElementById('dept-ondemand-list').innerHTML = (res.ondemandList && res.ondemandList.length > 0) 
       ? res.ondemandList.map(wf => `
         <li class="mb-2 p-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center border-start border-success border-4">
@@ -68,94 +67,130 @@ app.department = {
         </li>`).join('')
       : '<li class="p-2 text-muted fw-bold">無常設問卷。</li>';
 
-    let allWorkflows = [];
-    for (let cat in res.categories) {
-        allWorkflows = allWorkflows.concat(res.categories[cat]);
-    }
-    allWorkflows.sort((a, b) => a.sort - b.sort);
-
+    // ✅ 重構：依照「分類 (Category)」將任務分群，並實作預設收合的摺疊面板
     let html = '';
-    if (allWorkflows.length === 0) {
+    let sortedCategories = Object.keys(res.categories).sort();
+    
+    if (sortedCategories.length === 0) {
         document.getElementById('dept-accordion-container').innerHTML = '<p class="text-muted mt-3">此單位尚未設定任務流。</p>';
         return;
     }
 
-    allWorkflows.forEach(wf => {
-      let collapseId = `col-${wf.id}`;
-      let wfStatusBadge = '';
-      
-      if (wf.isOnDemand) {
-          wfStatusBadge = `<span class="badge bg-success rounded-pill px-3 py-2 shadow-sm">常設任務</span>`;
-      } else if (wf.isComplete) {
-          wfStatusBadge = `<span class="badge bg-success rounded-pill px-3 py-2 shadow-sm"><i class="bi bi-check"></i> 任務完成</span>`;
-      } else if (wf.isRequiredToday || wf.isPeriod) {
-          wfStatusBadge = `<span class="badge bg-secondary rounded-pill px-3 py-2 shadow-sm">未填寫</span>`;
-      } else {
-          wfStatusBadge = `<span class="badge bg-light text-dark border rounded-pill px-3 py-2 shadow-sm">今日免填</span>`;
-      }
+    let catIndex = 0;
+    sortedCategories.forEach(catName => {
+      catIndex++;
+      let wfs = res.categories[catName];
+      // 確保分類內的任務依照 sort 欄位排序
+      wfs.sort((a, b) => a.sort - b.sort);
 
-      let listHtml = '';
-      wf.flows.forEach(f => {
-        if(f.records.length > 0) {
-          f.records.forEach(r => {
-             let badge = `<span class="badge bg-success shadow-sm">正常</span>`;
-             if(r.formStatus === '維修中') badge = `<span class="badge bg-warning text-dark shadow-sm">維修中</span>`;
-             else if(r.isException) badge = `<span class="badge bg-danger shadow-sm">異常</span>`;
-             
-             listHtml += `
-               <div class="list-group-item d-flex justify-content-between align-items-center py-2 bg-light">
-                 <div class="ms-1 border-start border-3 border-primary ps-2">
-                   <span class="fw-bold text-dark d-block">${f.name}</span>
-                   <small class="text-muted"><i class="bi bi-person"></i> ${r.empName} | <i class="bi bi-clock"></i> ${r.time}</small>
-                 </div>
-                 <div>${badge} <button class="btn btn-sm btn-outline-primary ms-2 bg-white" onclick="app.department.openForm('edit', '${f.id}', '${f.name}', '${r.recordId}')">查看紀錄</button></div>
-               </div>`;
-          });
+      let compCount = 0;
+      let incCount = 0;
+      let wfsHtml = '';
+
+      wfs.forEach(wf => {
+        let collapseId = `col-${wf.id}`;
+        let wfStatusBadge = '';
+        
+        // 計算統計數字與標籤
+        if (wf.isOnDemand) {
+            wfStatusBadge = `<span class="badge bg-success rounded-pill px-3 py-2 shadow-sm">常設任務</span>`;
+            // 隨時可填如有填寫紀錄，也算進完成數供參考
+            if (wf.isComplete && wf.flows.some(f => f.records.length > 0)) compCount++; 
+        } else if (wf.isComplete) {
+            wfStatusBadge = `<span class="badge bg-success rounded-pill px-3 py-2 shadow-sm"><i class="bi bi-check"></i> 任務完成</span>`;
+            compCount++;
+        } else if (wf.isRequiredToday || wf.isPeriod) {
+            wfStatusBadge = `<span class="badge bg-secondary rounded-pill px-3 py-2 shadow-sm">未填寫</span>`;
+            incCount++;
         } else {
-           listHtml += `
-             <div class="list-group-item d-flex justify-content-between align-items-center py-3 bg-white">
-               <div class="ms-1 text-muted ps-2"><span class="fw-bold d-block">${f.name}</span> <small>尚未填寫</small></div>
-             </div>`;
+            wfStatusBadge = `<span class="badge bg-light text-dark border rounded-pill px-3 py-2 shadow-sm">今日免填</span>`;
         }
-      });
 
-      html += `
-        <div class="card mb-3 shadow-sm rounded border-0 border-start border-primary border-4">
-          <div class="card-body p-0">
-            <div class="d-flex justify-content-between align-items-center p-3" 
-                 style="cursor: pointer; transition: background 0.2s;" 
-                 onmouseover="this.style.backgroundColor='#f8f9fa'" 
-                 onmouseout="this.style.backgroundColor='transparent'"
-                 onclick="app.department.startWorkflow('${wf.id}')">
-              <div>
-                <strong class="fs-4 text-primary"><i class="bi bi-play-circle-fill me-2"></i>${wf.name}</strong>
-                <span class="badge bg-info text-dark ms-2 align-middle">${wf.category}</span>
-                <div class="text-muted small mt-2 ms-4"><i class="bi bi-ui-radios"></i> 包含表單: ${wf.flows.map(f=>f.name).join(' ➡️ ')}</div>
+        let listHtml = '';
+        wf.flows.forEach(f => {
+          if(f.records.length > 0) {
+            f.records.forEach(r => {
+               let badge = `<span class="badge bg-success shadow-sm">正常</span>`;
+               if(r.formStatus === '維修中') badge = `<span class="badge bg-warning text-dark shadow-sm">維修中</span>`;
+               else if(r.isException) badge = `<span class="badge bg-danger shadow-sm">異常</span>`;
+               
+               listHtml += `
+                 <div class="list-group-item d-flex justify-content-between align-items-center py-2 bg-white border-0 border-bottom">
+                   <div class="ms-1 border-start border-3 border-primary ps-2">
+                     <span class="fw-bold text-dark d-block">${f.name}</span>
+                     <small class="text-muted"><i class="bi bi-person"></i> ${r.empName} | <i class="bi bi-clock"></i> ${r.time}</small>
+                   </div>
+                   <div>${badge} <button class="btn btn-sm btn-outline-primary ms-2" onclick="app.department.openForm('edit', '${f.id}', '${f.name}', '${r.recordId}')">查看紀錄</button></div>
+                 </div>`;
+            });
+          } else {
+             listHtml += `
+               <div class="list-group-item d-flex justify-content-between align-items-center py-3 bg-white border-0 border-bottom">
+                 <div class="ms-1 text-muted ps-2"><span class="fw-bold d-block">${f.name}</span> <small>尚未填寫</small></div>
+               </div>`;
+          }
+        });
+
+        wfsHtml += `
+          <div class="card mb-3 shadow-sm rounded border-0 border-start border-primary border-4">
+            <div class="card-body p-0">
+              <div class="d-flex justify-content-between align-items-center p-3 bg-white" 
+                   style="cursor: pointer; transition: background 0.2s;" 
+                   onmouseover="this.style.backgroundColor='#f8f9fa'" 
+                   onmouseout="this.style.backgroundColor='transparent'"
+                   onclick="app.department.startWorkflow('${wf.id}')">
+                <div>
+                  <strong class="fs-5 text-primary"><i class="bi bi-play-circle-fill me-2"></i>${wf.name}</strong>
+                  <div class="text-muted small mt-2 ms-4"><i class="bi bi-ui-radios"></i> 包含表單: ${wf.flows.map(f=>f.name).join(' ➡️ ')}</div>
+                </div>
+                <div class="text-end">
+                  ${wfStatusBadge}
+                  <div class="small text-primary mt-1 fw-bold">點擊開始填寫 <i class="bi bi-chevron-right"></i></div>
+                </div>
               </div>
-              <div class="text-end">
-                ${wfStatusBadge}
-                <div class="small text-primary mt-1 fw-bold">點擊開始填寫 <i class="bi bi-chevron-right"></i></div>
-              </div>
-            </div>
-            <div class="border-top">
-              <div class="accordion accordion-flush" id="acc-${wf.id}">
-                <div class="accordion-item">
-                  <h2 class="accordion-header">
-                    <button class="accordion-button collapsed py-2 bg-white text-secondary border-0" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
-                      <small><i class="bi bi-clock-history"></i> 查看本日各子表單填寫明細</small>
-                    </button>
-                  </h2>
-                  <div id="${collapseId}" class="accordion-collapse collapse" data-bs-parent="#acc-${wf.id}">
-                    <div class="accordion-body p-0">
-                      <div class="list-group list-group-flush">${listHtml}</div>
+              <div class="border-top">
+                <div class="accordion accordion-flush" id="acc-${wf.id}">
+                  <div class="accordion-item border-0">
+                    <h2 class="accordion-header">
+                      <button class="accordion-button collapsed py-2 bg-light text-secondary border-0" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
+                        <small><i class="bi bi-clock-history"></i> 查看本日各子表單填寫明細</small>
+                      </button>
+                    </h2>
+                    <div id="${collapseId}" class="accordion-collapse collapse" data-bs-parent="#acc-${wf.id}">
+                      <div class="accordion-body p-0">
+                        <div class="list-group list-group-flush border-0">${listHtml}</div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+          </div>`;
+      });
+
+      // 產生該分類的摺疊面板 (預設收合)
+      let incBadgeClass = incCount > 0 ? 'bg-danger' : 'bg-secondary';
+      html += `
+        <div class="accordion mb-3 shadow-sm border-0" id="cat-acc-${catIndex}">
+          <div class="accordion-item border-0 rounded overflow-hidden">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed bg-white text-dark py-3 border-bottom border-2 border-primary" type="button" data-bs-toggle="collapse" data-bs-target="#cat-col-${catIndex}">
+                <span class="fs-5 fw-bold text-primary"><i class="bi bi-folder2-open me-2"></i>${catName}</span>
+                <div class="ms-auto me-2">
+                   <span class="badge bg-success shadow-sm me-1 px-3 py-2">已填寫: ${compCount}</span>
+                   <span class="badge ${incBadgeClass} shadow-sm px-3 py-2">未填寫: ${incCount}</span>
+                </div>
+              </button>
+            </h2>
+            <div id="cat-col-${catIndex}" class="accordion-collapse collapse bg-light" data-bs-parent="#cat-acc-${catIndex}">
+              <div class="accordion-body p-3">
+                ${wfsHtml}
+              </div>
+            </div>
           </div>
         </div>`;
     });
+
     document.getElementById('dept-accordion-container').innerHTML = html;
   },
 
