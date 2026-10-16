@@ -402,12 +402,24 @@ app.department = {
     
     for (const q of app.questions) {
       let value = ""; let isException = false;
+      // ✅ 預先解析異常關鍵字陣列
+      let excConds = (q.excCond || "").split(',').map(s => s.trim()).filter(s => s !== "");
+
       if (q.type === '單選') {
         const c = document.querySelector(`input[name="${q.qId}"]:checked`);
-        if(c) value = c.value;
+        if(c) {
+           value = c.value;
+           // 若選擇的選項在異常清單內，標示異常
+           if(excConds.includes(value)) isException = true;
+        }
       } else if (q.type === '多選') {
         const c = document.querySelectorAll(`input[name="${q.qId}"]:checked`);
-        if(c.length > 0) value = Array.from(c).map(cb => cb.value).join(',');
+        if(c.length > 0) {
+           let valArr = Array.from(c).map(cb => cb.value);
+           value = valArr.join(',');
+           // 只要勾選的項目中，有任何一個命中異常清單，就標示異常
+           if(valArr.some(v => excConds.includes(v))) isException = true;
+        }
       } else if (q.type === '數字' || q.type === '溫度') {
         value = document.getElementById(q.qId).value;
         if (value !== "") {
@@ -415,8 +427,11 @@ app.department = {
           if ((q.min !== null && numVal < q.min) || (q.max !== null && numVal > q.max)) isException = true;
         }
       } else if (q.type === '文字') {
-        // ✅ 新增：取得文字題型的內容 (不需做上下限驗證)
         value = document.getElementById(q.qId).value;
+        // 如果輸入的文字中「包含」任何一個異常關鍵字，就標示異常
+        if (value !== "" && excConds.length > 0) {
+           if (excConds.some(kw => value.includes(kw))) isException = true;
+        }
       } else if (q.type === '照片') {
         const fileInput = document.getElementById(q.qId);
         if (fileInput && fileInput.files.length > 0) value = await this.fileToBase64(fileInput.files[0]);
