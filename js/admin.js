@@ -268,6 +268,7 @@ app.admin = {
     this.initSortable('admin-questions-list', 'questions');
   },
 
+// ✅ 替換 adminEditQuestion 加入異常條件輸入框
   adminEditQuestion(q = null) {
     const isNew = !q;
     document.getElementById('adminModalTitle').innerText = isNew ? '新增題目' : '修改題目';
@@ -278,21 +279,45 @@ app.admin = {
     let memo = isNew ? '' : (q.memo || '');
     let min = isNew ? '' : (q.min !== null && q.min !== undefined ? q.min : '');
     let max = isNew ? '' : (q.max !== null && q.max !== undefined ? q.max : '');
+    let excCond = isNew ? '' : (q.excCond || ''); // ✅ 讀取異常條件
 
     document.getElementById('adminModalBody').innerHTML = `
       <input type="hidden" id="aq-id" value="${id}"><input type="hidden" id="aq-sort" value="${sort}">
       <div class="mb-2"><label class="form-label fw-bold">綁定表單 ID (Flow ID)</label><input type="text" id="aq-flow" class="form-control border-dark" value="${flowId}"></div>
       <div class="mb-2"><label class="form-label fw-bold">題目名稱</label><input type="text" id="aq-title" class="form-control border-primary" value="${title}"></div>
       <div class="mb-2"><label class="form-label fw-bold">備註 (內部註記)</label><input type="text" id="aq-memo" class="form-control" value="${memo}"></div>
+      
       <div class="mb-2"><label class="form-label fw-bold">題型</label>
-        <select id="aq-type" class="form-select"><option ${type==='單選'?'selected':''}>單選</option><option ${type==='多選'?'selected':''}>多選</option><option ${type==='文字'?'selected':''}>文字</option><option ${type==='數字'?'selected':''}>數字</option><option ${type==='溫度'?'selected':''}>溫度</option><option ${type==='照片'?'selected':''}>照片</option></select>
+        <select id="aq-type" class="form-select">
+          <option ${type==='單選'?'selected':''}>單選</option><option ${type==='多選'?'selected':''}>多選</option>
+          <option ${type==='文字'?'selected':''}>文字</option> <!-- 補上文字題型 -->
+          <option ${type==='數字'?'selected':''}>數字</option><option ${type==='溫度'?'selected':''}>溫度</option><option ${type==='照片'?'selected':''}>照片</option>
+        </select>
       </div>
       <div class="mb-2"><label class="form-label fw-bold">選項 (用逗號分隔)</label><input type="text" id="aq-opt" class="form-control" value="${opts}"></div>
-      <div class="row mb-3"><div class="col-6"><label class="form-label fw-bold">正常值下限</label><input type="number" step="any" id="aq-min" class="form-control" value="${min}"></div><div class="col-6"><label class="form-label fw-bold">正常值上限</label><input type="number" step="any" id="aq-max" class="form-control" value="${max}"></div></div>
+      
+      <div class="p-3 bg-light border border-danger rounded mb-3">
+        <label class="form-label fw-bold text-danger"><i class="bi bi-exclamation-triangle"></i> 異常觸發設定</label>
+        <div class="row mb-2">
+          <div class="col-6"><label class="form-label small fw-bold">正常值下限 <span class="text-muted">(數字/溫度專用)</span></label><input type="number" step="any" id="aq-min" class="form-control form-control-sm" value="${min}"></div>
+          <div class="col-6"><label class="form-label small fw-bold">正常值上限 <span class="text-muted">(數字/溫度專用)</span></label><input type="number" step="any" id="aq-max" class="form-control form-control-sm" value="${max}"></div>
+        </div>
+        <div>
+          <label class="form-label small fw-bold">觸發異常的關鍵字/選項 <span class="text-muted">(單選/多選/文字專用)</span></label>
+          <input type="text" id="aq-exc-cond" class="form-control form-control-sm" value="${excCond}" placeholder="例如: 破損,漏水,無法啟動 (用逗號分隔)">
+        </div>
+      </div>
+
       <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="aq-req" ${req?'checked':''}><label class="form-check-label fw-bold text-danger">必填項目</label></div>
     `;
+    
     document.getElementById('adminModalSaveBtn').onclick = async () => {
-      await app.api({ action: 'adminSaveQuestion', data: { id: document.getElementById('aq-id').value, flowId: document.getElementById('aq-flow').value, sort: document.getElementById('aq-sort').value, title: document.getElementById('aq-title').value, type: document.getElementById('aq-type').value, memo: document.getElementById('aq-memo').value, options: document.getElementById('aq-opt').value, min: document.getElementById('aq-min').value, max: document.getElementById('aq-max').value, req: document.getElementById('aq-req').checked }});
+      await app.api({ action: 'adminSaveQuestion', data: { 
+        id: document.getElementById('aq-id').value, flowId: document.getElementById('aq-flow').value, sort: document.getElementById('aq-sort').value, 
+        title: document.getElementById('aq-title').value, type: document.getElementById('aq-type').value, memo: document.getElementById('aq-memo').value, 
+        options: document.getElementById('aq-opt').value, min: document.getElementById('aq-min').value, max: document.getElementById('aq-max').value, 
+        req: document.getElementById('aq-req').checked, excCond: document.getElementById('aq-exc-cond').value // ✅ 傳送異常條件
+      }});
       this.adminDataCache = null; bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide(); this.loadAdminQuestions();
     };
     new bootstrap.Modal(document.getElementById('adminModal')).show();
