@@ -1,4 +1,5 @@
 app.department = {
+
   async loadDeptFlows(dept, menuItem = null) {
     if(menuItem) app.setActiveMenu(menuItem);
     app.currentDept = dept;
@@ -35,6 +36,11 @@ app.department = {
           </li>`).join('')
       : '<li class="p-2 text-white fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 目前無異常！</li>';
 
+    // ✅ 寫入數字標籤
+    document.getElementById('dept-inc-count').innerText = res.incompleteList.length;
+    document.getElementById('dept-period-count').innerText = res.incompletePeriodList ? res.incompletePeriodList.length : 0;
+    document.getElementById('dept-ondemand-count').innerText = res.ondemandList ? res.ondemandList.length : 0;
+
     // 本日未填寫
     document.getElementById('dept-inc-list').innerHTML = res.incompleteList.length > 0
       ? res.incompleteList.map(wf => `
@@ -62,12 +68,10 @@ app.department = {
         </li>`).join('')
       : '<li class="p-2 text-muted fw-bold">無常設問卷。</li>';
 
-    // ✅ 將原本以「分類」包裝的架構打平，改為純粹依照任務的「排序」排列
     let allWorkflows = [];
     for (let cat in res.categories) {
         allWorkflows = allWorkflows.concat(res.categories[cat]);
     }
-    // 依據 Workflows 資料庫設定的順序排序
     allWorkflows.sort((a, b) => a.sort - b.sort);
 
     let html = '';
@@ -90,7 +94,6 @@ app.department = {
           wfStatusBadge = `<span class="badge bg-light text-dark border rounded-pill px-3 py-2 shadow-sm">今日免填</span>`;
       }
 
-      // 產生歷史明細的 HTML
       let listHtml = '';
       wf.flows.forEach(f => {
         if(f.records.length > 0) {
@@ -116,11 +119,9 @@ app.department = {
         }
       });
 
-      // ✅ 全新設計：任務名稱直接變成超大按鈕，點擊就自動填表！
       html += `
         <div class="card mb-3 shadow-sm rounded border-0 border-start border-primary border-4">
           <div class="card-body p-0">
-            <!-- 任務主體按鈕 -->
             <div class="d-flex justify-content-between align-items-center p-3" 
                  style="cursor: pointer; transition: background 0.2s;" 
                  onmouseover="this.style.backgroundColor='#f8f9fa'" 
@@ -136,7 +137,6 @@ app.department = {
                 <div class="small text-primary mt-1 fw-bold">點擊開始填寫 <i class="bi bi-chevron-right"></i></div>
               </div>
             </div>
-            <!-- 歷史紀錄展開區 (保留供主管查閱) -->
             <div class="border-top">
               <div class="accordion accordion-flush" id="acc-${wf.id}">
                 <div class="accordion-item">
