@@ -285,7 +285,7 @@ app.admin = {
       <div class="mb-2"><label class="form-label fw-bold">題目名稱</label><input type="text" id="aq-title" class="form-control border-primary" value="${title}"></div>
       <div class="mb-2"><label class="form-label fw-bold">備註 (內部註記)</label><input type="text" id="aq-memo" class="form-control" value="${memo}"></div>
       <div class="mb-2"><label class="form-label fw-bold">題型</label>
-        <select id="aq-type" class="form-select"><option ${type==='單選'?'selected':''}>單選</option><option ${type==='多選'?'selected':''}>多選</option><option ${type==='數字'?'selected':''}>數字</option><option ${type==='溫度'?'selected':''}>溫度</option><option ${type==='照片'?'selected':''}>照片</option></select>
+        <select id="aq-type" class="form-select"><option ${type==='單選'?'selected':''}>單選</option><option ${type==='多選'?'selected':''}>多選</option><option ${type==='文字'?'selected':''}>文字</option><option ${type==='數字'?'selected':''}>數字</option><option ${type==='溫度'?'selected':''}>溫度</option><option ${type==='照片'?'selected':''}>照片</option></select>
       </div>
       <div class="mb-2"><label class="form-label fw-bold">選項 (用逗號分隔)</label><input type="text" id="aq-opt" class="form-control" value="${opts}"></div>
       <div class="row mb-3"><div class="col-6"><label class="form-label fw-bold">正常值下限</label><input type="number" step="any" id="aq-min" class="form-control" value="${min}"></div><div class="col-6"><label class="form-label fw-bold">正常值上限</label><input type="number" step="any" id="aq-max" class="form-control" value="${max}"></div></div>
