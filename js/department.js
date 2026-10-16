@@ -340,6 +340,8 @@ app.department = {
         });
       } else if (q.type === '數字' || q.type === '溫度') {
         html += `<input type="number" step="any" id="${q.qId}" class="form-control form-control-lg bg-light border border-secondary shadow-sm" value="${val}">`;
+      } else if (q.type === '文字') {
+        html += `<textarea id="${q.qId}" class="form-control form-control-lg bg-light border border-secondary shadow-sm" rows="3" placeholder="請輸入文字...">${val}</textarea>`;
       } else if (q.type === '照片') {
         if(mode === 'edit' && val.startsWith('http')) {
           html += `<div class="mb-2"><img src="${val}" class="img-fluid rounded shadow-sm" style="max-height:200px;"></div><small class="text-muted d-block mb-2">上傳新照將覆蓋</small>`;
