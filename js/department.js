@@ -414,6 +414,9 @@ app.department = {
           const numVal = Number(value);
           if ((q.min !== null && numVal < q.min) || (q.max !== null && numVal > q.max)) isException = true;
         }
+      } else if (q.type === '文字') {
+        // ✅ 新增：取得文字題型的內容 (不需做上下限驗證)
+        value = document.getElementById(q.qId).value;
       } else if (q.type === '照片') {
         const fileInput = document.getElementById(q.qId);
         if (fileInput && fileInput.files.length > 0) value = await this.fileToBase64(fileInput.files[0]);
