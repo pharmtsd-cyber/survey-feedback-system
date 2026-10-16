@@ -67,8 +67,9 @@ app.department = {
         </li>`).join('')
       : '<li class="p-2 text-muted fw-bold">無常設問卷。</li>';
 
-    // ✅ 重構：依照「分類 (Category)」將任務分群，並實作預設收合的摺疊面板
-    let html = '';
+    // ✅ 重構：如果有分類就包進摺疊面板；如果「未分類」就直接顯示成獨立卡片
+    let uncategorizedHtml = '';
+    let categorizedHtml = '';
     let sortedCategories = Object.keys(res.categories).sort();
     
     if (sortedCategories.length === 0) {
@@ -80,7 +81,6 @@ app.department = {
     sortedCategories.forEach(catName => {
       catIndex++;
       let wfs = res.categories[catName];
-      // 確保分類內的任務依照 sort 欄位排序
       wfs.sort((a, b) => a.sort - b.sort);
 
       let compCount = 0;
@@ -91,10 +91,8 @@ app.department = {
         let collapseId = `col-${wf.id}`;
         let wfStatusBadge = '';
         
-        // 計算統計數字與標籤
         if (wf.isOnDemand) {
             wfStatusBadge = `<span class="badge bg-success rounded-pill px-3 py-2 shadow-sm">常設任務</span>`;
-            // 隨時可填如有填寫紀錄，也算進完成數供參考
             if (wf.isComplete && wf.flows.some(f => f.records.length > 0)) compCount++; 
         } else if (wf.isComplete) {
             wfStatusBadge = `<span class="badge bg-success rounded-pill px-3 py-2 shadow-sm"><i class="bi bi-check"></i> 任務完成</span>`;
@@ -131,6 +129,7 @@ app.department = {
           }
         });
 
+        // 任務主體卡片
         wfsHtml += `
           <div class="card mb-3 shadow-sm rounded border-0 border-start border-primary border-4">
             <div class="card-body p-0">
@@ -168,30 +167,35 @@ app.department = {
           </div>`;
       });
 
-      // 產生該分類的摺疊面板 (預設收合)
-      let incBadgeClass = incCount > 0 ? 'bg-danger' : 'bg-secondary';
-      html += `
-        <div class="accordion mb-3 shadow-sm border-0" id="cat-acc-${catIndex}">
-          <div class="accordion-item border-0 rounded overflow-hidden">
-            <h2 class="accordion-header">
-              <button class="accordion-button collapsed bg-white text-dark py-3 border-bottom border-2 border-primary" type="button" data-bs-toggle="collapse" data-bs-target="#cat-col-${catIndex}">
-                <span class="fs-5 fw-bold text-primary"><i class="bi bi-folder2-open me-2"></i>${catName}</span>
-                <div class="ms-auto me-2">
-                   <span class="badge bg-success shadow-sm me-1 px-3 py-2">已填寫: ${compCount}</span>
-                   <span class="badge ${incBadgeClass} shadow-sm px-3 py-2">未填寫: ${incCount}</span>
+      // ✅ 判斷：如果是未分類，直接加到外層；否則包裝成手風琴
+      if (catName === '未分類' || catName === '') {
+          uncategorizedHtml += wfsHtml;
+      } else {
+          let incBadgeClass = incCount > 0 ? 'bg-danger' : 'bg-secondary';
+          categorizedHtml += `
+            <div class="accordion mb-3 shadow-sm border-0" id="cat-acc-${catIndex}">
+              <div class="accordion-item border-0 rounded overflow-hidden">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed bg-white text-dark py-3 border-bottom border-2 border-primary" type="button" data-bs-toggle="collapse" data-bs-target="#cat-col-${catIndex}">
+                    <span class="fs-5 fw-bold text-primary"><i class="bi bi-folder2-open me-2"></i>${catName}</span>
+                    <div class="ms-auto me-2">
+                       <span class="badge bg-success shadow-sm me-1 px-3 py-2">已填寫: ${compCount}</span>
+                       <span class="badge ${incBadgeClass} shadow-sm px-3 py-2">未填寫: ${incCount}</span>
+                    </div>
+                  </button>
+                </h2>
+                <div id="cat-col-${catIndex}" class="accordion-collapse collapse bg-light" data-bs-parent="#cat-acc-${catIndex}">
+                  <div class="accordion-body p-3">
+                    ${wfsHtml}
+                  </div>
                 </div>
-              </button>
-            </h2>
-            <div id="cat-col-${catIndex}" class="accordion-collapse collapse bg-light" data-bs-parent="#cat-acc-${catIndex}">
-              <div class="accordion-body p-3">
-                ${wfsHtml}
               </div>
-            </div>
-          </div>
-        </div>`;
+            </div>`;
+      }
     });
 
-    document.getElementById('dept-accordion-container').innerHTML = html;
+    // 將未分類的任務放在最前面，然後接上有分類的區塊
+    document.getElementById('dept-accordion-container').innerHTML = uncategorizedHtml + categorizedHtml;
   },
 
   async startWorkflowFromCalendar(wfId, dept, dateStr) {
