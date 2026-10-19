@@ -318,20 +318,23 @@ app.department = {
     const qContainer = document.getElementById('questions-container');
     app.questions.forEach(q => {
       const ansData = oldAnswers[q.qId] || { value: '', isException: false };
-      const val = ansData.value;
+      let val = ansData.value;
       const isExc = ansData.isException;
       
-      // ✅ 提示文字處理 (支援換行顯示)
+      // ✅ 如果是全新填寫 (mode === 'new') 且尚未填過，就自動帶入預設值
+      if (mode === 'new' && val === '' && q.defVal) {
+          val = q.defVal;
+      }
+      
       const hintHtml = q.hint ? `<div class="text-muted small mb-3"><i class="bi bi-info-circle"></i> ${q.hint.replace(/\n/g, '<br>')}</div>` : '';
 
-      // ✅ 若是「標題」題型，渲染成分隔區塊
       if (q.type.includes('標題')) {
          qContainer.innerHTML += `
            <div class="mb-4 mt-5 px-3 py-3 bg-light border-start border-primary border-4 shadow-sm rounded">
              <h4 class="fw-bold text-dark mb-0">${q.title}</h4>
              ${q.hint ? `<div class="text-muted mt-2">${q.hint.replace(/\n/g, '<br>')}</div>` : ''}
            </div>`;
-         return; // 跳過後續卡片渲染
+         return; 
       }
 
       const reqMark = q.isRequired ? `<span class="text-danger ms-1">*</span>` : '';
