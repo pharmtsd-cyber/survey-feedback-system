@@ -321,11 +321,26 @@ app.department = {
       const val = ansData.value;
       const isExc = ansData.isException;
       
+      // ✅ 提示文字處理 (支援換行顯示)
+      const hintHtml = q.hint ? `<div class="text-muted small mb-3"><i class="bi bi-info-circle"></i> ${q.hint.replace(/\n/g, '<br>')}</div>` : '';
+
+      // ✅ 若是「標題」題型，渲染成分隔區塊
+      if (q.type.includes('標題')) {
+         qContainer.innerHTML += `
+           <div class="mb-4 mt-5 px-3 py-3 bg-light border-start border-primary border-4 shadow-sm rounded">
+             <h4 class="fw-bold text-dark mb-0">${q.title}</h4>
+             ${q.hint ? `<div class="text-muted mt-2">${q.hint.replace(/\n/g, '<br>')}</div>` : ''}
+           </div>`;
+         return; // 跳過後續卡片渲染
+      }
+
       const reqMark = q.isRequired ? `<span class="text-danger ms-1">*</span>` : '';
       const excBadge = isExc ? `<span class="badge bg-danger ms-2"><i class="bi bi-exclamation-triangle"></i> 異常狀態</span>` : '';
       const borderClass = isExc ? 'border border-danger border-3 shadow' : 'border-0 shadow-sm';
 
-      let html = `<div class="card mb-4 ${borderClass}"><div class="card-body"><h5 class="fw-bold mb-3 text-dark">${q.title} ${reqMark} ${excBadge}</h5>`;
+      let html = `<div class="card mb-4 ${borderClass}"><div class="card-body">
+                    <h5 class="fw-bold mb-1 text-dark">${q.title} ${reqMark} ${excBadge}</h5>
+                    ${hintHtml}`;
       
       if(q.type === '單選') {
         q.options.forEach(opt => {
@@ -401,23 +416,20 @@ app.department = {
     let answers = [];
     
     for (const q of app.questions) {
+      // ✅ 若是標題題型，完全不收集答案也不驗證
+      if (q.type.includes('標題')) continue;
+
       let value = ""; let isException = false;
-      // ✅ 預先解析異常關鍵字陣列
       let excConds = (q.excCond || "").split(',').map(s => s.trim()).filter(s => s !== "");
 
       if (q.type === '單選') {
         const c = document.querySelector(`input[name="${q.qId}"]:checked`);
-        if(c) {
-           value = c.value;
-           // 若選擇的選項在異常清單內，標示異常
-           if(excConds.includes(value)) isException = true;
-        }
+        if(c) { value = c.value; if(excConds.includes(value)) isException = true; }
       } else if (q.type === '多選') {
         const c = document.querySelectorAll(`input[name="${q.qId}"]:checked`);
         if(c.length > 0) {
            let valArr = Array.from(c).map(cb => cb.value);
            value = valArr.join(',');
-           // 只要勾選的項目中，有任何一個命中異常清單，就標示異常
            if(valArr.some(v => excConds.includes(v))) isException = true;
         }
       } else if (q.type === '數字' || q.type === '溫度') {
@@ -428,7 +440,6 @@ app.department = {
         }
       } else if (q.type === '文字') {
         value = document.getElementById(q.qId).value;
-        // 如果輸入的文字中「包含」任何一個異常關鍵字，就標示異常
         if (value !== "" && excConds.length > 0) {
            if (excConds.some(kw => value.includes(kw))) isException = true;
         }
