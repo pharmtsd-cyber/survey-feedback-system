@@ -268,7 +268,6 @@ app.admin = {
     this.initSortable('admin-questions-list', 'questions');
   },
 
-// ✅ 替換 adminEditQuestion 加入異常條件輸入框
   adminEditQuestion(q = null) {
     const isNew = !q;
     document.getElementById('adminModalTitle').innerText = isNew ? '新增題目' : '修改題目';
@@ -279,21 +278,28 @@ app.admin = {
     let memo = isNew ? '' : (q.memo || '');
     let min = isNew ? '' : (q.min !== null && q.min !== undefined ? q.min : '');
     let max = isNew ? '' : (q.max !== null && q.max !== undefined ? q.max : '');
-    let excCond = isNew ? '' : (q.excCond || ''); // ✅ 讀取異常條件
+    let excCond = isNew ? '' : (q.excCond || ''); 
+    let hint = isNew ? '' : (q.hint || ''); // ✅ 讀取提示文字
 
     document.getElementById('adminModalBody').innerHTML = `
       <input type="hidden" id="aq-id" value="${id}"><input type="hidden" id="aq-sort" value="${sort}">
       <div class="mb-2"><label class="form-label fw-bold">綁定表單 ID (Flow ID)</label><input type="text" id="aq-flow" class="form-control border-dark" value="${flowId}"></div>
-      <div class="mb-2"><label class="form-label fw-bold">題目名稱</label><input type="text" id="aq-title" class="form-control border-primary" value="${title}"></div>
-      <div class="mb-2"><label class="form-label fw-bold">備註 (內部註記)</label><input type="text" id="aq-memo" class="form-control" value="${memo}"></div>
       
       <div class="mb-2"><label class="form-label fw-bold">題型</label>
         <select id="aq-type" class="form-select">
           <option ${type==='單選'?'selected':''}>單選</option><option ${type==='多選'?'selected':''}>多選</option>
-          <option ${type==='文字'?'selected':''}>文字</option> <!-- 補上文字題型 -->
-          <option ${type==='數字'?'selected':''}>數字</option><option ${type==='溫度'?'selected':''}>溫度</option><option ${type==='照片'?'selected':''}>照片</option>
+          <option ${type==='文字'?'selected':''}>文字</option><option ${type==='數字'?'selected':''}>數字</option>
+          <option ${type==='溫度'?'selected':''}>溫度</option><option ${type==='照片'?'selected':''}>照片</option>
+          <option ${type==='標題'?'selected':''}>📌 標題/說明文字 (不需填寫)</option> <!-- ✅ 新增標題選項 -->
         </select>
       </div>
+
+      <div class="mb-2"><label class="form-label fw-bold">題目名稱 / 標題</label><input type="text" id="aq-title" class="form-control border-primary" value="${title}"></div>
+      <div class="mb-2"><label class="form-label fw-bold">提示說明文字 <span class="text-muted fw-normal">(選填，顯示在題目下方)</span></label>
+        <textarea id="aq-hint" class="form-control" rows="2" placeholder="例如：請確認閥門是否開啟...">${hint}</textarea>
+      </div>
+      
+      <div class="mb-2"><label class="form-label fw-bold">備註 (內部註記)</label><input type="text" id="aq-memo" class="form-control" value="${memo}"></div>
       <div class="mb-2"><label class="form-label fw-bold">選項 (用逗號分隔)</label><input type="text" id="aq-opt" class="form-control" value="${opts}"></div>
       
       <div class="p-3 bg-light border border-danger rounded mb-3">
@@ -303,7 +309,7 @@ app.admin = {
           <div class="col-6"><label class="form-label small fw-bold">正常值上限 <span class="text-muted">(數字/溫度專用)</span></label><input type="number" step="any" id="aq-max" class="form-control form-control-sm" value="${max}"></div>
         </div>
         <div>
-          <label class="form-label small fw-bold">觸發異常的關鍵字/選項 <span class="text-muted">(單選/多選/文字專用)</span></label>
+          <label class="form-label small fw-bold">觸發異常的關鍵字/選項 <span class="text-muted">(單/多選/文字專用)</span></label>
           <input type="text" id="aq-exc-cond" class="form-control form-control-sm" value="${excCond}" placeholder="例如: 破損,漏水,無法啟動 (用逗號分隔)">
         </div>
       </div>
@@ -316,7 +322,7 @@ app.admin = {
         id: document.getElementById('aq-id').value, flowId: document.getElementById('aq-flow').value, sort: document.getElementById('aq-sort').value, 
         title: document.getElementById('aq-title').value, type: document.getElementById('aq-type').value, memo: document.getElementById('aq-memo').value, 
         options: document.getElementById('aq-opt').value, min: document.getElementById('aq-min').value, max: document.getElementById('aq-max').value, 
-        req: document.getElementById('aq-req').checked, excCond: document.getElementById('aq-exc-cond').value // ✅ 傳送異常條件
+        req: document.getElementById('aq-req').checked, excCond: document.getElementById('aq-exc-cond').value, hint: document.getElementById('aq-hint').value
       }});
       this.adminDataCache = null; bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide(); this.loadAdminQuestions();
     };
