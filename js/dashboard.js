@@ -42,38 +42,45 @@ app.dashboard = {
     document.getElementById('dash-period-count').innerText = data.incompletePeriodWorkflows ? data.incompletePeriodWorkflows.length : 0;
     document.getElementById('dash-ondemand-count').innerText = data.ondemandWorkflows ? data.ondemandWorkflows.length : 0;
 
-    // 區間內未填寫清單
+
+// 區間內未填寫清單
     document.getElementById('dash-inc-list').innerHTML = data.incompleteWorkflows.length > 0
       ? data.incompleteWorkflows.map(wf => `
         <li class="mb-2 p-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center border-start border-warning border-4">
           <div>
             <span class="badge bg-secondary border me-1 shadow-sm"><i class="bi bi-calendar"></i> ${wf.date}</span>
-            <span class="badge bg-light text-dark border">${wf.dept}</span><span class="badge bg-info text-dark border ms-1">${wf.category}</span>
+            <span class="badge bg-light text-dark border">${wf.dept}</span>
+            <span class="badge bg-info text-dark border ms-1">${wf.category}</span>
+            <span class="badge bg-light text-secondary border ms-1">${wf.subCategory || '未次分類'}</span>
             <span class="fw-bold ms-1 text-dark">${wf.name}</span>
           </div>
           <button class="btn btn-sm btn-primary fw-bold text-nowrap shadow-sm ms-2" onclick="app.department.startWorkflowFromCalendar('${wf.id}', '${wf.dept}', '${wf.date}')">補填</button>
         </li>`).join('')
       : '<li class="p-2 text-success fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 區間內全數例行任務填寫完畢！</li>';
 
-    // 週期未填寫 (週/月/季)
+    // 週期未填寫
     document.getElementById('dash-period-list').innerHTML = (data.incompletePeriodWorkflows && data.incompletePeriodWorkflows.length > 0)
       ? data.incompletePeriodWorkflows.map(wf => `
         <li class="mb-2 p-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center border-start border-warning border-4">
           <div>
             <span class="badge bg-secondary border me-1 shadow-sm"><i class="bi bi-calendar-range"></i> 本期</span>
-            <span class="badge bg-light text-dark border">${wf.dept}</span><span class="badge bg-info text-dark border ms-1">${wf.category}</span>
+            <span class="badge bg-light text-dark border">${wf.dept}</span>
+            <span class="badge bg-info text-dark border ms-1">${wf.category}</span>
+            <span class="badge bg-light text-secondary border ms-1">${wf.subCategory || '未次分類'}</span>
             <span class="fw-bold ms-1">${wf.name}</span>
           </div>
           <button class="btn btn-sm btn-primary fw-bold text-nowrap shadow-sm ms-2" onclick="app.department.startWorkflowFromCalendar('${wf.id}', '${wf.dept}', '${wf.date}')">啟動</button>
         </li>`).join('')
       : '<li class="p-2 text-success fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 區間內無待辦週期任務！</li>';
 
-    // 隨時可填 (On-Demand)
+    // 隨時可填
     document.getElementById('dash-ondemand-list').innerHTML = (data.ondemandWorkflows && data.ondemandWorkflows.length > 0)
       ? data.ondemandWorkflows.map(wf => `
         <li class="mb-2 p-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center border-start border-success border-4">
           <div>
-            <span class="badge bg-light text-dark border">${wf.dept}</span><span class="badge bg-success text-white border ms-1">${wf.category}</span>
+            <span class="badge bg-light text-dark border">${wf.dept}</span>
+            <span class="badge bg-success text-white border ms-1">${wf.category}</span>
+            <span class="badge border border-success text-success ms-1">${wf.subCategory || '未次分類'}</span>
             <span class="fw-bold ms-1">${wf.name}</span>
           </div>
           <button class="btn btn-sm btn-outline-success fw-bold text-nowrap shadow-sm ms-2" onclick="app.department.startWorkflowFromCalendar('${wf.id}', '${wf.dept}', '${wf.date}')">進入填寫</button>
