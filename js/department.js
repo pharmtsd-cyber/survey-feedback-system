@@ -67,7 +67,7 @@ app.department = {
         </li>`).join('')
       : '<li class="p-2 text-muted fw-bold">無常設問卷。</li>';
 
-// ✅ 重構：主分類分段 -> 次分類摺疊 -> 卡片風格顯示
+// ✅ 取代原有的 department.js 對應區段，拿掉前綴文字，也去除了舊版的 <h5> 標籤殘留
     let html = '';
     let sortedCategories = Object.keys(res.categories).sort();
     
@@ -81,7 +81,6 @@ app.department = {
       globalCatIndex++;
       let wfs = res.categories[catName];
       
-      // 依照次分類分群
       let subGroups = {};
       wfs.forEach(wf => {
           let sub = wf.subCategory || '未次分類';
@@ -89,45 +88,44 @@ app.department = {
           subGroups[sub].push(wf);
       });
 
-      html += `<h5 class="fw-bold text-primary mt-4 mb-3 border-bottom pb-2"><i class="bi bi-tags"></i> 主分類：${catName}</h5>`;
-      
       let sortedSubCats = Object.keys(subGroups).sort();
+      let categorizedHtml = '';
+      let uncategorizedHtml = '';
+      let compCount = 0;
+      let incCount = 0;
+
       sortedSubCats.forEach((subCatName, subIdx) => {
           let subWfs = subGroups[subCatName];
           subWfs.sort((a,b) => a.sort - b.sort);
 
           let collapseId = `col-sub-${globalCatIndex}-${subIdx}`;
-          
-          // 計算這個次分類裡有幾個任務是「應填但未填」的
           let subIncCount = subWfs.filter(w => !w.isComplete && !w.isOnDemand && (w.isRequiredToday || w.isPeriod)).length;
           let incBadgeClass = subIncCount > 0 ? 'bg-danger' : 'bg-secondary';
           
           let wfsHtml = '';
           subWfs.forEach(wf => {
-              let wfStatusBadge = '';
-              let jumpBtn = '';
-              
+              let wfStatusBadge = ''; let jumpBtn = '';
               if (wf.isOnDemand) {
                   wfStatusBadge = `<span class="badge bg-success shadow-sm fs-6">常設任務</span>`;
                   jumpBtn = `<button class="btn btn-sm btn-outline-success fw-bold ms-2 shadow-sm" onclick="app.department.startWorkflow('${wf.id}')">進入填寫</button>`;
+                  if (wf.isComplete && wf.flows.some(f => f.records.length > 0)) compCount++; 
               } else if (wf.isComplete) {
                   wfStatusBadge = `<span class="badge bg-success shadow-sm fs-6"><i class="bi bi-check"></i> 任務完成</span>`;
                   jumpBtn = `<button class="btn btn-sm btn-outline-primary fw-bold ms-2 shadow-sm" onclick="app.department.startWorkflow('${wf.id}')">查看任務</button>`;
+                  compCount++;
               } else if (wf.isRequiredToday || wf.isPeriod) {
                   wfStatusBadge = `<span class="badge bg-secondary shadow-sm fs-6">未填寫</span>`;
                   jumpBtn = `<button class="btn btn-sm btn-primary fw-bold ms-2 shadow-sm" onclick="app.department.startWorkflow('${wf.id}')">啟動任務</button>`;
+                  incCount++;
               } else {
                   wfStatusBadge = `<span class="badge bg-light text-dark border shadow-sm fs-6">今日免填</span>`;
                   jumpBtn = `<button class="btn btn-sm btn-outline-secondary fw-bold ms-2 shadow-sm" onclick="app.department.startWorkflow('${wf.id}')">查看任務</button>`;
               }
 
-              // 子表單 (Flows) 明細，比照行事曆風格
               let flowsHtml = `<div class="bg-light p-2 rounded border-0 mt-2">`;
               wf.flows.forEach(f => {
                   let fBadge = `<span class="badge bg-secondary">未填寫</span>`;
-                  let actionBtn = '';
-                  let empInfo = '尚未填寫';
-                  
+                  let actionBtn = ''; let empInfo = '尚未填寫';
                   if (f.records.length > 0) {
                       let r = f.records[0];
                       if (r.formStatus === '維修中') fBadge = `<span class="badge bg-warning text-dark">維修中</span>`;
@@ -136,19 +134,10 @@ app.department = {
                       actionBtn = `<button class="btn btn-sm btn-outline-primary ms-2 bg-white" onclick="app.department.openForm('edit', '${f.id}', '${f.name}', '${r.recordId}')">查看</button>`;
                       empInfo = `${r.empName ? `<i class="bi bi-person text-primary"></i> ${r.empName} ｜ ` : ''}<i class="bi bi-clock"></i> ${r.time}`;
                   }
-                  
-                  flowsHtml += `
-                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-white">
-                      <div class="ms-1 ps-2 border-start border-3 border-secondary">
-                        <span class="fw-bold d-block text-dark">${f.name}</span>
-                        <small class="text-muted">${empInfo}</small>
-                      </div>
-                      <div>${fBadge}${actionBtn}</div>
-                    </div>`;
+                  flowsHtml += `<div class="d-flex justify-content-between align-items-center py-2 border-bottom border-white"><div class="ms-1 ps-2 border-start border-3 border-secondary"><span class="fw-bold d-block text-dark">${f.name}</span><small class="text-muted">${empInfo}</small></div><div>${fBadge}${actionBtn}</div></div>`;
               });
               flowsHtml += `</div>`;
 
-              // 任務卡片主體
               wfsHtml += `
                 <div class="card shadow-sm border-0 mb-3 bg-white border-start border-primary border-4">
                   <div class="card-body p-3">
@@ -161,26 +150,51 @@ app.department = {
                 </div>`;
           });
 
-          // 次分類摺疊面板
+          // ✅ 如果是未次分類，直接顯示不折疊
+          if (subCatName === '未次分類' || subCatName === '') {
+              categorizedHtml += wfsHtml;
+          } else {
+              categorizedHtml += `
+                <div class="accordion mb-3 shadow-sm border-0">
+                  <div class="accordion-item border-0 rounded overflow-hidden">
+                    <h2 class="accordion-header">
+                      <!-- ✅ 移除了 "次分類：" 前綴 -->
+                      <button class="accordion-button collapsed bg-white text-dark py-3 border-bottom border-2 border-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
+                        <span class="fs-6 fw-bold text-secondary"><i class="bi bi-folder2-open me-2"></i>${subCatName}</span>
+                        <div class="ms-auto me-2">
+                           <span class="badge ${incBadgeClass} shadow-sm px-3 py-1">未填寫任務: ${subIncCount}</span>
+                        </div>
+                      </button>
+                    </h2>
+                    <div id="${collapseId}" class="accordion-collapse collapse bg-light"><div class="accordion-body p-3">${wfsHtml}</div></div>
+                  </div>
+                </div>`;
+          }
+      });
+
+      if (catName === '未分類' || catName === '') {
+          uncategorizedHtml += categorizedHtml;
+      } else {
+          let catIncBadgeClass = incCount > 0 ? 'bg-danger' : 'bg-secondary';
           html += `
-            <div class="accordion mb-3 shadow-sm border-0">
+            <div class="accordion mb-3 shadow-sm border-0" id="cat-acc-${globalCatIndex}">
               <div class="accordion-item border-0 rounded overflow-hidden">
                 <h2 class="accordion-header">
-                  <button class="accordion-button collapsed bg-white text-dark py-3 border-bottom border-2 border-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
-                    <span class="fs-6 fw-bold text-secondary"><i class="bi bi-folder2-open me-2"></i>次分類：${subCatName}</span>
+                  <!-- ✅ 移除了 "主分類：" 前綴，並確保沒有多餘的 <h5> 標籤 -->
+                  <button class="accordion-button collapsed bg-white text-dark py-3 border-bottom border-2 border-primary" type="button" data-bs-toggle="collapse" data-bs-target="#cat-col-${globalCatIndex}">
+                    <span class="fs-5 fw-bold text-primary"><i class="bi bi-folder2-open me-2"></i>${catName}</span>
                     <div class="ms-auto me-2">
-                       <span class="badge ${incBadgeClass} shadow-sm px-3 py-1">未填寫任務: ${subIncCount}</span>
+                       <span class="badge bg-success shadow-sm me-1 px-3 py-2">已填寫: ${compCount}</span>
+                       <span class="badge ${catIncBadgeClass} shadow-sm px-3 py-2">未填寫: ${incCount}</span>
                     </div>
                   </button>
                 </h2>
-                <div id="${collapseId}" class="accordion-collapse collapse bg-light">
-                  <div class="accordion-body p-3">
-                    ${wfsHtml}
-                  </div>
+                <div id="cat-col-${globalCatIndex}" class="accordion-collapse collapse bg-light" data-bs-parent="#cat-acc-${globalCatIndex}">
+                  <div class="accordion-body p-3">${categorizedHtml}</div>
                 </div>
               </div>
             </div>`;
-      });
+      }
     });
 
     document.getElementById('dept-accordion-container').innerHTML = html;
