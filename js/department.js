@@ -67,9 +67,8 @@ app.department = {
         </li>`).join('')
       : '<li class="p-2 text-muted fw-bold">無常設問卷。</li>';
 
-    // ✅ 重構：如果有分類就包進摺疊面板；如果「未分類」就直接顯示成獨立卡片
-    let uncategorizedHtml = '';
-    let categorizedHtml = '';
+// ✅ 重構：主分類分段 -> 次分類摺疊 -> 卡片風格顯示
+    let html = '';
     let sortedCategories = Object.keys(res.categories).sort();
     
     if (sortedCategories.length === 0) {
@@ -77,125 +76,114 @@ app.department = {
         return;
     }
 
-    let catIndex = 0;
+    let globalCatIndex = 0;
     sortedCategories.forEach(catName => {
-      catIndex++;
+      globalCatIndex++;
       let wfs = res.categories[catName];
-      wfs.sort((a, b) => a.sort - b.sort);
-
-      let compCount = 0;
-      let incCount = 0;
-      let wfsHtml = '';
-
+      
+      // 依照次分類分群
+      let subGroups = {};
       wfs.forEach(wf => {
-        let collapseId = `col-${wf.id}`;
-        let wfStatusBadge = '';
-        
-        if (wf.isOnDemand) {
-            wfStatusBadge = `<span class="badge bg-success rounded-pill px-3 py-2 shadow-sm">常設任務</span>`;
-            if (wf.isComplete && wf.flows.some(f => f.records.length > 0)) compCount++; 
-        } else if (wf.isComplete) {
-            wfStatusBadge = `<span class="badge bg-success rounded-pill px-3 py-2 shadow-sm"><i class="bi bi-check"></i> 任務完成</span>`;
-            compCount++;
-        } else if (wf.isRequiredToday || wf.isPeriod) {
-            wfStatusBadge = `<span class="badge bg-secondary rounded-pill px-3 py-2 shadow-sm">未填寫</span>`;
-            incCount++;
-        } else {
-            wfStatusBadge = `<span class="badge bg-light text-dark border rounded-pill px-3 py-2 shadow-sm">今日免填</span>`;
-        }
-
-        let listHtml = '';
-        wf.flows.forEach(f => {
-          if(f.records.length > 0) {
-            f.records.forEach(r => {
-               let badge = `<span class="badge bg-success shadow-sm">正常</span>`;
-               if(r.formStatus === '維修中') badge = `<span class="badge bg-warning text-dark shadow-sm">維修中</span>`;
-               else if(r.isException) badge = `<span class="badge bg-danger shadow-sm">異常</span>`;
-               
-               listHtml += `
-                 <div class="list-group-item d-flex justify-content-between align-items-center py-2 bg-white border-0 border-bottom">
-                   <div class="ms-1 border-start border-3 border-primary ps-2">
-                     <span class="fw-bold text-dark d-block">${f.name}</span>
-                     <small class="text-muted"><i class="bi bi-person"></i> ${r.empName} | <i class="bi bi-clock"></i> ${r.time}</small>
-                   </div>
-                   <div>${badge} <button class="btn btn-sm btn-outline-primary ms-2" onclick="app.department.openForm('edit', '${f.id}', '${f.name}', '${r.recordId}')">查看紀錄</button></div>
-                 </div>`;
-            });
-          } else {
-             listHtml += `
-               <div class="list-group-item d-flex justify-content-between align-items-center py-3 bg-white border-0 border-bottom">
-                 <div class="ms-1 text-muted ps-2"><span class="fw-bold d-block">${f.name}</span> <small>尚未填寫</small></div>
-               </div>`;
-          }
-        });
-
-        // 任務主體卡片
-        wfsHtml += `
-          <div class="card mb-3 shadow-sm rounded border-0 border-start border-primary border-4">
-            <div class="card-body p-0">
-              <div class="d-flex justify-content-between align-items-center p-3 bg-white" 
-                   style="cursor: pointer; transition: background 0.2s;" 
-                   onmouseover="this.style.backgroundColor='#f8f9fa'" 
-                   onmouseout="this.style.backgroundColor='transparent'"
-                   onclick="app.department.startWorkflow('${wf.id}')">
-                <div>
-                  <strong class="fs-5 text-primary"><i class="bi bi-play-circle-fill me-2"></i>${wf.name}</strong>
-                  <div class="text-muted small mt-2 ms-4"><i class="bi bi-ui-radios"></i> 包含表單: ${wf.flows.map(f=>f.name).join(' ➡️ ')}</div>
-                </div>
-                <div class="text-end">
-                  ${wfStatusBadge}
-                  <div class="small text-primary mt-1 fw-bold">點擊開始填寫 <i class="bi bi-chevron-right"></i></div>
-                </div>
-              </div>
-              <div class="border-top">
-                <div class="accordion accordion-flush" id="acc-${wf.id}">
-                  <div class="accordion-item border-0">
-                    <h2 class="accordion-header">
-                      <button class="accordion-button collapsed py-2 bg-light text-secondary border-0" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
-                        <small><i class="bi bi-clock-history"></i> 查看本日各子表單填寫明細</small>
-                      </button>
-                    </h2>
-                    <div id="${collapseId}" class="accordion-collapse collapse" data-bs-parent="#acc-${wf.id}">
-                      <div class="accordion-body p-0">
-                        <div class="list-group list-group-flush border-0">${listHtml}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>`;
+          let sub = wf.subCategory || '未次分類';
+          if(!subGroups[sub]) subGroups[sub] = [];
+          subGroups[sub].push(wf);
       });
 
-      // ✅ 判斷：如果是未分類，直接加到外層；否則包裝成手風琴
-      if (catName === '未分類' || catName === '') {
-          uncategorizedHtml += wfsHtml;
-      } else {
-          let incBadgeClass = incCount > 0 ? 'bg-danger' : 'bg-secondary';
-          categorizedHtml += `
-            <div class="accordion mb-3 shadow-sm border-0" id="cat-acc-${catIndex}">
+      html += `<h5 class="fw-bold text-primary mt-4 mb-3 border-bottom pb-2"><i class="bi bi-tags"></i> 主分類：${catName}</h5>`;
+      
+      let sortedSubCats = Object.keys(subGroups).sort();
+      sortedSubCats.forEach((subCatName, subIdx) => {
+          let subWfs = subGroups[subCatName];
+          subWfs.sort((a,b) => a.sort - b.sort);
+
+          let collapseId = `col-sub-${globalCatIndex}-${subIdx}`;
+          
+          // 計算這個次分類裡有幾個任務是「應填但未填」的
+          let subIncCount = subWfs.filter(w => !w.isComplete && !w.isOnDemand && (w.isRequiredToday || w.isPeriod)).length;
+          let incBadgeClass = subIncCount > 0 ? 'bg-danger' : 'bg-secondary';
+          
+          let wfsHtml = '';
+          subWfs.forEach(wf => {
+              let wfStatusBadge = '';
+              let jumpBtn = '';
+              
+              if (wf.isOnDemand) {
+                  wfStatusBadge = `<span class="badge bg-success shadow-sm fs-6">常設任務</span>`;
+                  jumpBtn = `<button class="btn btn-sm btn-outline-success fw-bold ms-2 shadow-sm" onclick="app.department.startWorkflow('${wf.id}')">進入填寫</button>`;
+              } else if (wf.isComplete) {
+                  wfStatusBadge = `<span class="badge bg-success shadow-sm fs-6"><i class="bi bi-check"></i> 任務完成</span>`;
+                  jumpBtn = `<button class="btn btn-sm btn-outline-primary fw-bold ms-2 shadow-sm" onclick="app.department.startWorkflow('${wf.id}')">查看任務</button>`;
+              } else if (wf.isRequiredToday || wf.isPeriod) {
+                  wfStatusBadge = `<span class="badge bg-secondary shadow-sm fs-6">未填寫</span>`;
+                  jumpBtn = `<button class="btn btn-sm btn-primary fw-bold ms-2 shadow-sm" onclick="app.department.startWorkflow('${wf.id}')">啟動任務</button>`;
+              } else {
+                  wfStatusBadge = `<span class="badge bg-light text-dark border shadow-sm fs-6">今日免填</span>`;
+                  jumpBtn = `<button class="btn btn-sm btn-outline-secondary fw-bold ms-2 shadow-sm" onclick="app.department.startWorkflow('${wf.id}')">查看任務</button>`;
+              }
+
+              // 子表單 (Flows) 明細，比照行事曆風格
+              let flowsHtml = `<div class="bg-light p-2 rounded border-0 mt-2">`;
+              wf.flows.forEach(f => {
+                  let fBadge = `<span class="badge bg-secondary">未填寫</span>`;
+                  let actionBtn = '';
+                  let empInfo = '尚未填寫';
+                  
+                  if (f.records.length > 0) {
+                      let r = f.records[0];
+                      if (r.formStatus === '維修中') fBadge = `<span class="badge bg-warning text-dark">維修中</span>`;
+                      else if (r.isException) fBadge = `<span class="badge bg-danger">異常</span>`;
+                      else fBadge = `<span class="badge bg-success">正常</span>`;
+                      actionBtn = `<button class="btn btn-sm btn-outline-primary ms-2 bg-white" onclick="app.department.openForm('edit', '${f.id}', '${f.name}', '${r.recordId}')">查看</button>`;
+                      empInfo = `${r.empName ? `<i class="bi bi-person text-primary"></i> ${r.empName} ｜ ` : ''}<i class="bi bi-clock"></i> ${r.time}`;
+                  }
+                  
+                  flowsHtml += `
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-white">
+                      <div class="ms-1 ps-2 border-start border-3 border-secondary">
+                        <span class="fw-bold d-block text-dark">${f.name}</span>
+                        <small class="text-muted">${empInfo}</small>
+                      </div>
+                      <div>${fBadge}${actionBtn}</div>
+                    </div>`;
+              });
+              flowsHtml += `</div>`;
+
+              // 任務卡片主體
+              wfsHtml += `
+                <div class="card shadow-sm border-0 mb-3 bg-white border-start border-primary border-4">
+                  <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                      <div class="fw-bold fs-5 text-dark"><i class="bi bi-play-circle-fill text-primary me-2"></i>${wf.name}</div>
+                      <div class="d-flex align-items-center">${wfStatusBadge}${jumpBtn}</div>
+                    </div>
+                    ${flowsHtml}
+                  </div>
+                </div>`;
+          });
+
+          // 次分類摺疊面板
+          html += `
+            <div class="accordion mb-3 shadow-sm border-0">
               <div class="accordion-item border-0 rounded overflow-hidden">
                 <h2 class="accordion-header">
-                  <button class="accordion-button collapsed bg-white text-dark py-3 border-bottom border-2 border-primary" type="button" data-bs-toggle="collapse" data-bs-target="#cat-col-${catIndex}">
-                    <span class="fs-5 fw-bold text-primary"><i class="bi bi-folder2-open me-2"></i>${catName}</span>
+                  <button class="accordion-button collapsed bg-white text-dark py-3 border-bottom border-2 border-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
+                    <span class="fs-6 fw-bold text-secondary"><i class="bi bi-folder2-open me-2"></i>次分類：${subCatName}</span>
                     <div class="ms-auto me-2">
-                       <span class="badge bg-success shadow-sm me-1 px-3 py-2">已填寫: ${compCount}</span>
-                       <span class="badge ${incBadgeClass} shadow-sm px-3 py-2">未填寫: ${incCount}</span>
+                       <span class="badge ${incBadgeClass} shadow-sm px-3 py-1">未填寫任務: ${subIncCount}</span>
                     </div>
                   </button>
                 </h2>
-                <div id="cat-col-${catIndex}" class="accordion-collapse collapse bg-light" data-bs-parent="#cat-acc-${catIndex}">
+                <div id="${collapseId}" class="accordion-collapse collapse bg-light">
                   <div class="accordion-body p-3">
                     ${wfsHtml}
                   </div>
                 </div>
               </div>
             </div>`;
-      }
+      });
     });
 
-    // 將未分類的任務放在最前面，然後接上有分類的區塊
-    document.getElementById('dept-accordion-container').innerHTML = uncategorizedHtml + categorizedHtml;
+    document.getElementById('dept-accordion-container').innerHTML = html;
   },
 
   async startWorkflowFromCalendar(wfId, dept, dateStr) {
