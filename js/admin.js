@@ -95,6 +95,7 @@ app.admin = {
     let id = isNew ? `WF_${new Date().getTime()}` : wf.id;
     let sort = isNew ? 999 : wf.sort; let name = isNew ? '' : wf.name;
     let dept = isNew ? '' : wf.dept; let category = isNew ? '' : wf.category;
+    let subCategory = isNew ? '' : (wf.subCategory || ''); // ✅ 讀取次分類
     let flowIds = isNew ? '' : wf.flowIds; let activeChecked = (!isNew && wf.active) || isNew ? 'checked' : '';
 
     let schType = 'DAILY', schVal = '';
@@ -112,7 +113,11 @@ app.admin = {
       <input type="hidden" id="aw-id" value="${id}"><input type="hidden" id="aw-sort" value="${sort}">
       <div class="mb-3"><label class="form-label fw-bold">任務名稱</label><input type="text" id="aw-name" class="form-control border-primary" value="${name}"></div>
       <div class="mb-3"><label class="form-label fw-bold">所屬單位</label><input type="text" id="aw-dept" class="form-control" value="${dept}"></div>
-      <div class="mb-3"><label class="form-label fw-bold">任務分類</label><input type="text" id="aw-cat" class="form-control" value="${category}"></div>
+      
+      <div class="row mb-3">
+        <div class="col-6"><label class="form-label fw-bold">主分類 (大標題)</label><input type="text" id="aw-cat" class="form-control" value="${category}" placeholder="如: 例行保養"></div>
+        <div class="col-6"><label class="form-label fw-bold">次分類 (摺疊群組)</label><input type="text" id="aw-subcat" class="form-control" value="${subCategory}" placeholder="如: 空調系統"></div>
+      </div>
       
       <div class="mb-3 p-3 bg-light rounded border border-info">
         <label class="form-label fw-bold text-dark"><i class="bi bi-clock-history"></i> 執行頻率設定</label>
@@ -148,9 +153,14 @@ app.admin = {
       } else if (t === 'MONTHDAY') {
          let md = document.getElementById('aw-md-val').value; if(md) finalSch = `MONTHDAY:${md}`;
       } else if (t === 'PERIOD') finalSch = `PERIOD:${document.getElementById('aw-pd-val').value}`;
-      else if (t === 'ONDEMAND') finalSch = 'ONDEMAND'; // ✅ 存入資料庫
+      else if (t === 'ONDEMAND') finalSch = 'ONDEMAND'; 
 
-      await app.api({ action: 'adminSaveWorkflow', data: { id: document.getElementById('aw-id').value, name: document.getElementById('aw-name').value, sort: document.getElementById('aw-sort').value, dept: document.getElementById('aw-dept').value, category: document.getElementById('aw-cat').value, flowIds: document.getElementById('aw-flowids').value, schedule: finalSch, active: document.getElementById('aw-active').checked }});
+      await app.api({ action: 'adminSaveWorkflow', data: { 
+        id: document.getElementById('aw-id').value, name: document.getElementById('aw-name').value, sort: document.getElementById('aw-sort').value, 
+        dept: document.getElementById('aw-dept').value, category: document.getElementById('aw-cat').value, 
+        subCategory: document.getElementById('aw-subcat').value, // ✅ 傳送次分類
+        flowIds: document.getElementById('aw-flowids').value, schedule: finalSch, active: document.getElementById('aw-active').checked 
+      }});
       this.adminDataCache = null; bootstrap.Modal.getInstance(document.getElementById('adminModal')).hide(); this.loadAdminWorkflows();
     };
     new bootstrap.Modal(document.getElementById('adminModal')).show();
