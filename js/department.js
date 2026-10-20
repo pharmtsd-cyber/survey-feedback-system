@@ -40,11 +40,16 @@ app.department = {
     document.getElementById('dept-period-count').innerText = res.incompletePeriodList ? res.incompletePeriodList.length : 0;
     document.getElementById('dept-ondemand-count').innerText = res.ondemandList ? res.ondemandList.length : 0;
 
-    // 本日未填寫
+// 本日未填寫
     document.getElementById('dept-inc-list').innerHTML = res.incompleteList.length > 0
       ? res.incompleteList.map(wf => `
         <li class="mb-2 p-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center border-start border-warning border-4">
-          <div><span class="badge bg-light text-dark border">${wf.dept}</span><span class="badge bg-info text-dark border ms-1">${wf.category}</span><span class="fw-bold ms-1">${wf.name}</span></div>
+          <div>
+            <span class="badge bg-light text-dark border">${wf.dept}</span>
+            <span class="badge bg-info text-dark border ms-1">${wf.category}</span>
+            <span class="badge bg-light text-secondary border ms-1">${wf.subCategory || '未次分類'}</span>
+            <span class="fw-bold ms-1">${wf.name}</span>
+          </div>
           <button class="btn btn-sm btn-primary fw-bold text-nowrap shadow-sm ms-2" onclick="app.department.startWorkflow('${wf.id}')">啟動</button>
         </li>`).join('')
       : '<li class="p-2 text-success fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 本日指定任務全數填寫完畢！</li>';
@@ -53,7 +58,12 @@ app.department = {
     document.getElementById('dept-period-list').innerHTML = (res.incompletePeriodList && res.incompletePeriodList.length > 0) 
       ? res.incompletePeriodList.map(wf => `
         <li class="mb-2 p-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center border-start border-warning border-4">
-          <div><span class="badge bg-light text-dark border">${wf.dept}</span><span class="badge bg-info text-dark border ms-1">${wf.category}</span><span class="fw-bold ms-1">${wf.name}</span></div>
+          <div>
+            <span class="badge bg-light text-dark border">${wf.dept}</span>
+            <span class="badge bg-info text-dark border ms-1">${wf.category}</span>
+            <span class="badge bg-light text-secondary border ms-1">${wf.subCategory || '未次分類'}</span>
+            <span class="fw-bold ms-1">${wf.name}</span>
+          </div>
           <button class="btn btn-sm btn-primary fw-bold text-nowrap shadow-sm ms-2" onclick="app.department.startWorkflow('${wf.id}')">啟動</button>
         </li>`).join('')
       : '<li class="p-2 text-success fw-bold"><i class="bi bi-check-circle fs-5 me-2"></i> 本期無待辦週期任務！</li>';
@@ -62,7 +72,12 @@ app.department = {
     document.getElementById('dept-ondemand-list').innerHTML = (res.ondemandList && res.ondemandList.length > 0) 
       ? res.ondemandList.map(wf => `
         <li class="mb-2 p-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center border-start border-success border-4">
-          <div><span class="badge bg-light text-dark border">${wf.dept}</span><span class="badge bg-success text-white border ms-1">${wf.category}</span><span class="fw-bold ms-1">${wf.name}</span></div>
+          <div>
+            <span class="badge bg-light text-dark border">${wf.dept}</span>
+            <span class="badge bg-success text-white border ms-1">${wf.category}</span>
+            <span class="badge border border-success text-success ms-1">${wf.subCategory || '未次分類'}</span>
+            <span class="fw-bold ms-1">${wf.name}</span>
+          </div>
           <button class="btn btn-sm btn-outline-success fw-bold text-nowrap shadow-sm ms-2" onclick="app.department.startWorkflow('${wf.id}')">進入填寫</button>
         </li>`).join('')
       : '<li class="p-2 text-muted fw-bold">無常設問卷。</li>';
