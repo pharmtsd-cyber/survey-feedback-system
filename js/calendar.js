@@ -26,7 +26,7 @@ app.calendar = {
             this.updateDropdown('cal-filter-dept', '所有單位', deptSet);
             this.updateDropdown('cal-filter-wf', '所有任務', wfSet);
 
-            this.renderPeriodicBoard(); // ✅ 渲染上方週期看板
+            this.renderPeriodicBoard();
 
             let filterDept = document.getElementById('cal-filter-dept').value;
             let filterWf = document.getElementById('cal-filter-wf').value;
@@ -64,7 +64,6 @@ app.calendar = {
     document.getElementById('calendar-details-container').innerHTML = '<div class="text-muted mt-3">資料已篩選，請重新點選上方日期查看明細。</div>';
   },
 
-  // ✅ 渲染上方不佔格子的「週期性任務進度」
   renderPeriodicBoard() {
     let filterDept = document.getElementById('cal-filter-dept').value;
     let filterWf = document.getElementById('cal-filter-wf').value;
@@ -78,40 +77,159 @@ app.calendar = {
     board.style.display = 'block';
     listEl.innerHTML = pTasks.map(t => {
       let badge = t.status === '未填寫' ? 'bg-secondary' : (t.status.includes('異常') ? 'bg-danger' : 'bg-success');
+      
+      // ✅ 週期看板加入按鈕 (跳轉日期為當天)
+      let todayStr = document.getElementById('target-date').value;
+      let jumpBtn = `<button class="btn btn-sm ${t.status === '未填寫' ? 'btn-primary' : 'btn-outline-primary'} fw-bold ms-2 shadow-sm" onclick="app.department.startWorkflowFromCalendar('${t.wfId}', '${t.dept}', '${todayStr}')">${t.status === '未填寫' ? '啟動任務' : '查看任務'}</button>`;
+      
       return `<div class="list-group-item d-flex justify-content-between align-items-center py-3">
                 <div><div class="fw-bold fs-6">${t.wfName} <span class="badge bg-light text-dark border ms-2">${t.dept}</span></div><small class="text-muted">${t.periodLabel}</small></div>
-                <span class="badge ${badge} fs-6 shadow-sm">${t.status}</span>
+                <div class="d-flex align-items-center"><span class="badge ${badge} fs-6 shadow-sm">${t.status}</span>${jumpBtn}</div>
               </div>`;
     }).join('');
   },
 
   renderDetails(dateStr, details) {
     let html = `<h5 class="fw-bold mb-3 mt-4 border-bottom pb-2"><i class="bi bi-card-list"></i> ${dateStr} 任務狀態明細</h5>`;
-    let grouped = {};
-    details.forEach(d => { if(!grouped[d.dept]) grouped[d.dept] = []; grouped[d.dept].push(d); });
+    let groupedByDept = {};
+    details.forEach(d => { if(!groupedByDept[d.dept]) groupedByDept[d.dept] = []; groupedByDept[d.dept].push(d); });
 
-    for(let dept in grouped) {
-      html += `<h6 class="fw-bold text-primary mt-3"><i class="bi bi-building"></i> ${dept}</h6><div class="mb-3">`;
-      grouped[dept].forEach(d => {
-        let badgeClass = ''; let jumpBtn = '';
-        if (d.status === '未填寫') {
-          badgeClass = 'bg-secondary';
-          jumpBtn = `<button class="btn btn-sm btn-primary fw-bold ms-2 shadow-sm" onclick="app.department.startWorkflowFromCalendar('${d.wfId}', '${dept}', '${dateStr}')">啟動任務</button>`;
-        } else badgeClass = d.status.includes('異常') ? 'bg-danger' : 'bg-success';
+    let globalCatIndex = 0;
 
-        html += `<div class="card shadow-sm border-0 mb-3 bg-white"><div class="card-body p-3"><div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom"><div><div class="fw-bold fs-5 text-dark">${d.wfName} <span class="badge bg-light text-dark border ms-2 fs-6">${d.category}</span></div></div><div class="d-flex align-items-center"><span class="badge ${badgeClass} fs-6 shadow-sm">${d.status}</span>${jumpBtn}</div></div>`;
-        if (d.flows && d.flows.length > 0) {
-          html += `<div class="bg-light p-2 rounded border-0">`;
-          d.flows.forEach(f => {
-             let fBadge = f.status === '維修中' ? 'bg-warning text-dark' : (f.status === '異常' ? 'bg-danger' : (f.status === '正常' ? 'bg-success' : 'bg-secondary'));
-             let actionBtn = f.recordId ? `<button class="btn btn-sm btn-outline-primary ms-2 bg-white" onclick="app.department.openForm('edit', '${f.flowId}', '${f.flowName}', '${f.recordId}')">查看</button>` : '';
-             html += `<div class="d-flex justify-content-between align-items-center py-2 border-bottom border-white"><div class="ms-1 ps-2 border-start border-3 border-secondary"><span class="fw-bold d-block text-dark">${f.flowName}</span><small class="text-muted">${f.empName ? `<i class="bi bi-person text-primary"></i> ${f.empName} ｜ ` : ''}<i class="bi bi-clock"></i> ${f.time || '尚未填寫'}</small></div><div><span class="badge ${fBadge}">${f.status}</span>${actionBtn}</div></div>`;
-          });
-          html += `</div>`;
-        }
-        html += `</div></div>`;
+    for(let dept in groupedByDept) {
+      html += `<h5 class="fw-bold text-dark mt-4 mb-3"><i class="bi bi-building"></i> 單位：${dept}</h5>`;
+      let wfsForDept = groupedByDept[dept];
+
+      let groupedByCat = {};
+      wfsForDept.forEach(w => {
+        let cat = w.category || '未分類';
+        if(!groupedByCat[cat]) groupedByCat[cat] = [];
+        groupedByCat[cat].push(w);
       });
-      html += '</div>';
+
+      let sortedCategories = Object.keys(groupedByCat).sort();
+      let uncategorizedHtml = '';
+      let categorizedHtml = '';
+
+      sortedCategories.forEach(catName => {
+        globalCatIndex++;
+        let wfs = groupedByCat[catName];
+        let subGroups = {};
+        wfs.forEach(wf => {
+          let sub = wf.subCategory || '未次分類';
+          if(!subGroups[sub]) subGroups[sub] = [];
+          subGroups[sub].push(wf);
+        });
+
+        let compCount = 0;
+        let incCount = 0;
+        let wfsHtml = '';
+
+        let sortedSubCats = Object.keys(subGroups).sort();
+        sortedSubCats.forEach((subCatName, subIdx) => {
+          let subWfs = subGroups[subCatName];
+          subWfs.sort((a,b) => a.sort - b.sort);
+
+          let collapseId = `col-cal-sub-${globalCatIndex}-${subIdx}`;
+          let subIncCount = subWfs.filter(w => w.status === '未填寫' || w.status === '部分填寫').length;
+          let incBadgeClass = subIncCount > 0 ? 'bg-danger' : 'bg-secondary';
+
+          let subWfsHtml = '';
+          subWfs.forEach(wf => {
+            let wfStatusBadge = ''; let jumpBtn = '';
+
+            if (wf.isOnDemand) {
+                wfStatusBadge = `<span class="badge bg-success shadow-sm fs-6">常設任務</span>`;
+                jumpBtn = `<button class="btn btn-sm btn-outline-success fw-bold ms-2 shadow-sm" onclick="app.department.startWorkflowFromCalendar('${wf.wfId}', '${wf.dept}', '${dateStr}')">進入填寫</button>`;
+                if (wf.status !== '未填寫') compCount++;
+            } else if (wf.status.includes('已填寫')) {
+                wfStatusBadge = `<span class="badge bg-success shadow-sm fs-6"><i class="bi bi-check"></i> 任務完成</span>`;
+                jumpBtn = `<button class="btn btn-sm btn-outline-primary fw-bold ms-2 shadow-sm" onclick="app.department.startWorkflowFromCalendar('${wf.wfId}', '${wf.dept}', '${dateStr}')">查看任務</button>`;
+                compCount++;
+            } else {
+                wfStatusBadge = `<span class="badge bg-secondary shadow-sm fs-6">未填寫</span>`;
+                jumpBtn = `<button class="btn btn-sm btn-primary fw-bold ms-2 shadow-sm" onclick="app.department.startWorkflowFromCalendar('${wf.wfId}', '${wf.dept}', '${dateStr}')">啟動任務</button>`;
+                incCount++;
+            }
+
+            let flowsHtml = `<div class="bg-light p-2 rounded border-0 mt-2">`;
+            wf.flows.forEach(f => {
+                let fBadge = `<span class="badge bg-secondary">未填寫</span>`;
+                let actionBtn = ''; let empInfo = '尚未填寫';
+
+                if (f.recordId) {
+                    if (f.status === '維修中') fBadge = `<span class="badge bg-warning text-dark">維修中</span>`;
+                    else if (f.status === '異常') fBadge = `<span class="badge bg-danger">異常</span>`;
+                    else fBadge = `<span class="badge bg-success">正常</span>`;
+                    actionBtn = `<button class="btn btn-sm btn-outline-primary ms-2 bg-white" onclick="app.department.openForm('edit', '${f.flowId}', '${f.flowName}', '${f.recordId}')">查看</button>`;
+                    empInfo = `${f.empName ? `<i class="bi bi-person text-primary"></i> ${f.empName} ｜ ` : ''}<i class="bi bi-clock"></i> ${f.time}`;
+                }
+
+                flowsHtml += `<div class="d-flex justify-content-between align-items-center py-2 border-bottom border-white"><div class="ms-1 ps-2 border-start border-3 border-secondary"><span class="fw-bold d-block text-dark">${f.flowName}</span><small class="text-muted">${empInfo}</small></div><div>${fBadge}${actionBtn}</div></div>`;
+            });
+            flowsHtml += `</div>`;
+
+            let accId = `cal-acc-${wf.wfId}-${dateStr}`;
+
+            subWfsHtml += `
+              <div class="card shadow-sm border-0 mb-3 bg-white border-start border-primary border-4">
+                <div class="card-body p-3">
+                  <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                    <div class="fw-bold fs-5 text-dark"><i class="bi bi-play-circle-fill text-primary me-2"></i>${wf.wfName}</div>
+                    <div class="d-flex align-items-center">${wfStatusBadge}${jumpBtn}</div>
+                  </div>
+                  ${flowsHtml}
+                </div>
+              </div>`;
+          });
+
+          if (subCatName === '未次分類' || subCatName === '') {
+              wfsHtml += subWfsHtml;
+          } else {
+              wfsHtml += `
+                <div class="accordion mb-3 shadow-sm border-0">
+                  <div class="accordion-item border-0 rounded overflow-hidden">
+                    <h2 class="accordion-header">
+                      <!-- ✅ 行事曆：移除 "次分類：" 前綴 -->
+                      <button class="accordion-button collapsed bg-white text-dark py-3 border-bottom border-2 border-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
+                        <span class="fs-6 fw-bold text-secondary"><i class="bi bi-folder2-open me-2"></i>${subCatName}</span>
+                        <div class="ms-auto me-2">
+                           <span class="badge ${incBadgeClass} shadow-sm px-3 py-1">未填寫任務: ${subIncCount}</span>
+                        </div>
+                      </button>
+                    </h2>
+                    <div id="${collapseId}" class="accordion-collapse collapse bg-light"><div class="accordion-body p-3">${subWfsHtml}</div></div>
+                  </div>
+                </div>`;
+          }
+        });
+
+        if (catName === '未分類' || catName === '') {
+            uncategorizedHtml += wfsHtml;
+        } else {
+            let catIncBadgeClass = incCount > 0 ? 'bg-danger' : 'bg-secondary';
+            categorizedHtml += `
+              <div class="accordion mb-3 shadow-sm border-0" id="cat-acc-${globalCatIndex}">
+                <div class="accordion-item border-0 rounded overflow-hidden">
+                  <h2 class="accordion-header">
+                    <!-- ✅ 行事曆：移除 "主分類：" 前綴 -->
+                    <button class="accordion-button collapsed bg-white text-dark py-3 border-bottom border-2 border-primary" type="button" data-bs-toggle="collapse" data-bs-target="#cat-col-${globalCatIndex}">
+                      <span class="fs-5 fw-bold text-primary"><i class="bi bi-folder2-open me-2"></i>${catName}</span>
+                      <div class="ms-auto me-2">
+                         <span class="badge bg-success shadow-sm me-1 px-3 py-2">已填寫: ${compCount}</span>
+                         <span class="badge ${catIncBadgeClass} shadow-sm px-3 py-2">未填寫: ${incCount}</span>
+                      </div>
+                    </button>
+                  </h2>
+                  <div id="cat-col-${globalCatIndex}" class="accordion-collapse collapse bg-light" data-bs-parent="#cat-acc-${globalCatIndex}">
+                    <div class="accordion-body p-3">${wfsHtml}</div>
+                  </div>
+                </div>
+              </div>`;
+        }
+      });
+
+      html += `<div class="ps-2 ms-1 border-start border-3 border-primary mb-4">` + uncategorizedHtml + categorizedHtml + `</div>`;
     }
     document.getElementById('calendar-details-container').innerHTML = html;
   }
